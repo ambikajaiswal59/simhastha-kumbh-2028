@@ -1,0 +1,57 @@
+/* Container of all controls */
+.ol-control {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+/* Zoom buttons wrapper */
+.ol-zoom {
+    top: 10px;
+    left: auto;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 12px;
+    padding: 6px;
+}
+
+/* Individual buttons */
+.ol-zoom button {
+    background-color: #1f2937;
+    /* dark gray */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 18px;
+    margin: 4px 0;
+    transition: all 0.2s ease;
+}
+
+/* Hover effect */
+.ol-zoom button:hover {
+    background-color: #2563eb;
+    /* blue */
+    transform: scale(1.05);
+}
+
+/* Active click */
+.ol-zoom button:active {
+    background-color: #1d4ed8;
+}
+
+/* Attribution (bottom text) */
+.ol-attribution {
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border-radius: 8px;
+    padding: 4px 8px;
+    bottom: 10px !important;
+    right: 10px !important;
+}
+
+/* Attribution link */
+.ol-attribution a {
+    color: #93c5fd;
+}
