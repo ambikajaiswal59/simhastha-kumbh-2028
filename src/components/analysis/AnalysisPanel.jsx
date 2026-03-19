@@ -1,0 +1,169 @@
+export default function AnalysisPanel({
+  buffer,
+  selectedTypes = [],
+  analysisData = {},
+  selectedFeature,
+  setLayer,
+  layer
+}) {
+  console.log(selectedFeature);
+  const TYPE_LABELS = {
+    toilets_sanitation: "Toilet Sanitation",
+    road_network3: "Road Network",
+    police_station: "Police Station",
+    parking_loc: "Parking Location",
+  };
+
+  const IGNORE_KEYS = [
+    "temple",
+    "parking",
+    "junction",
+    "hotel",
+    "building",
+    "n",
+    "id",
+    "id_2",
+    "road_name",
+    "priority",
+    "road_id",
+    "access",
+    "condition",
+    "upd_date",
+    "upd_time",
+  ];
+  return (
+    <div className="w-80 bg-gray-100 p-4 shadow-lg border-l">
+      <h2 className="text-lg font-bold mb-4">Analysis Results</h2>
+      {selectedTypes?.includes("toilets_sanitation") && (
+        <div className="mt-4 flex gap-2">
+          {/* Demand Button */}
+          <button
+            style={{
+              padding: "8px 14px",
+              borderRadius: "8px",
+              border:
+                layer === "demand_layer"
+                  ? "1px solid #dc2626"
+                  : "1px solid #ccc",
+              backgroundColor: layer === "demand_layer" ? "#FFA500" : "#ffffff",
+              color: layer === "demand_layer" ? "#ffffff" : "#333",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 500,
+              transition: "all 0.2s ease",
+              boxShadow:
+                layer === "demand_layer"
+                  ? "0 2px 6px rgba(220,38,38,0.4)"
+                  : "0 1px 3px rgba(0,0,0,0.1)",
+            }}
+            onMouseEnter={(e) => {
+              if (layer !== "demand_layer") {
+                e.target.style.backgroundColor = "#f3f4f6";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (layer !== "demand_layer") {
+                e.target.style.backgroundColor = "#ffffff";
+              }
+            }}
+            onClick={() => {
+              console.log("Demand analysis enabled");
+              setLayer("demand_layer");
+            }}
+          >
+            Demand Analysis
+          </button>
+          {/* Supply Button */}
+          <button
+            style={{
+              padding: "8px 14px",
+              borderRadius: "8px",
+              border:
+                layer === "supply_layer"
+                  ? "1px solid #dc2626"
+                  : "1px solid #ccc",
+              backgroundColor:
+                layer === "supply_layer" ? "#F08000" : "#ffffff",
+              color: layer === "supply_layer" ? "#ffffff" : "#333",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 500,
+              transition: "all 0.2s ease",
+              boxShadow:
+                layer === "supply_layer"
+                  ? "0 2px 6px rgba(220,38,38,0.4)"
+                  : "0 1px 3px rgba(0,0,0,0.1)",
+            }}
+            onMouseEnter={(e) => {
+              if (layer !== "supply_layer") {
+                e.target.style.backgroundColor = "#f3f4f6";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (layer !== "supply_layer") {
+                e.target.style.backgroundColor = "#ffffff";
+              }
+            }}
+            onClick={() => {
+              console.log("Supply analysis enabled");
+              setLayer("supply_layer");
+            }}
+          >
+            Supply Gap Analysis
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {selectedTypes.map((type) => {
+          const item = analysisData[type];
+
+          if (!item) return null;
+
+          return (
+            <div key={type} className="bg-white p-3 rounded shadow">
+              <div className="flex justify-between">
+                <span className="font-semibold">
+                  {TYPE_LABELS[type] || type}
+                </span>
+
+                <span className="font-bold text-blue-600">
+                  {item.point_count}
+                </span>
+              </div>
+
+              {/* <p className="text-sm text-gray-500 mt-1">Features Found</p> */}
+              {/* 🔥 Dynamic Feature Data */}
+              {selectedFeature && (
+                <div className="mt-3 border-t pt-2">
+                  {Object.entries(selectedFeature)
+                    .filter(([key]) => !IGNORE_KEYS.includes(key)) // 🚀 filter here
+                    .map(([key, value]) => (
+                      <div
+                        key={key}
+                        className="flex justify-between text-xs text-gray-700"
+                      >
+                        <span className="capitalize">
+                          {key.charAt(0).toUpperCase() + key.slice(1)}
+                        </span>
+                        <span className="font-medium">{String(value)}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <p className="text-sm mt-2">
+                Avg Distance: <b>{Math.round(item.avg_distance_meters)} m</b>
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Buffer Info */}
+      {/* <div className="mt-5 bg-white p-3 rounded shadow text-sm">
+        Buffer Radius: <b>{buffer} km</b>
+      </div> */}
+    </div>
+  );
+}
