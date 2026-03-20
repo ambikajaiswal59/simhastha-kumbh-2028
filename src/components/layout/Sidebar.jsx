@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { API } from "../../config/api";
-export default function Sidebar({ setSelectedLayers, setBuffer }) {
+export default function Sidebar({
+  setSelectedLayers,
+  setBuffer,
+  setAnalysisLayers,
+  analysisLayers,
+  showAnalysisOptions,
+}) {
   const [layers, setLayers] = useState([]);
   const [selected, setSelected] = useState([{ table_name: "road_network3" }]);
   const [bufferValue, setBufferValue] = useState(300);
@@ -15,10 +21,34 @@ export default function Sidebar({ setSelectedLayers, setBuffer }) {
 
   // ✅ Labels + Icons
   const layerLabelMap = {
-    toilets_sanitation: "Toilets Sanitation 🚻",
-    police_station: "Police Station 🚓",
-    parking_loc: "Parking 🚗",
-    road_network3: "Road Network 🛣️",
+    toilets_sanitation: "Toilets Sanitation ",
+    police_station: "Police Station ",
+    parking_loc: "Parking ",
+    road_network3: "Road Network ",
+  };
+
+  // ✅ Helper function to find layer by name
+  const findLayerByName = (data, name) =>
+    data.find((l) => l.table_name === name);
+
+  // ✅ Helper function to handle layer data
+  const handleLayerData = (data) => {
+    if (!data?.data) return;
+
+    const filtered = allowedLayers
+      .map((name) => findLayerByName(data.data, name))
+      .filter(Boolean);
+
+    setLayers(filtered);
+
+    const defaultLayer = filtered.find(
+      (l) => l.table_name === "road_network3",
+    );
+
+    if (defaultLayer) {
+      setSelected([defaultLayer]);
+      setSelectedLayers(["road_network3"]);
+    }
   };
 
   // ✅ Fetch layers from backend
@@ -31,25 +61,7 @@ export default function Sidebar({ setSelectedLayers, setBuffer }) {
       body: JSON.stringify({}),
     })
       .then((res) => res.json())
-      .then((data) => {
-        if (!data || !data.data) return;
-
-        const filtered = allowedLayers
-          .map((name) => data.data.find((l) => l.table_name === name))
-          .filter(Boolean);
-
-        setLayers(filtered);
-
-        // default road selected
-        const defaultLayer = filtered.find(
-          (l) => l.table_name === "road_network3",
-        );
-
-        if (defaultLayer) {
-          setSelected([defaultLayer]);
-          setSelectedLayers(["road_network3"]);
-        }
-      })
+      .then(handleLayerData)
       .catch((err) => {
         console.error("Error fetching layers:", err);
       });
@@ -59,34 +71,39 @@ export default function Sidebar({ setSelectedLayers, setBuffer }) {
   const handleSelect = (layer) => {
     let updated;
 
-    if (selected.find((l) => l.table_name === layer.table_name)) {
+    const isSelected = selected.find((l) => l.table_name === layer.table_name);
+
+    if (isSelected) {
       updated = selected.filter((l) => l.table_name !== layer.table_name);
+
+      // 🔥 RESET ANALYSIS if toilets removed
+      if (layer.table_name === "toilets_sanitation" ) {
+        setAnalysisLayers({
+          demand: false,
+          supply: false,
+        });
+      }
     } else {
       updated = [...selected, layer];
     }
 
     setSelected(updated);
-
-    // ✅ Send only table names to parent (IMPORTANT)
     setSelectedLayers(updated.map((l) => l.table_name));
   };
 
-  // ✅ Clear all
-  const handleClear = () => {
-    setSelected([]);
-    setSelectedLayers([]);
-  };
+
 
   return (
     <div className="w-72 bg-gradient-to-b from-[#0f2a44] to-[#133b5c] text-white p-5 shadow-xl border-r border-orange-500/20">
       {/* Title */}
-      <h2 className="text-xl font-semibold mb-4 tracking-wide">Filters</h2>
+      <h2 className="text-xl font-semibold mb-4 tracking-wide">Layer List</h2>
 
       {/* Layers */}
       <div className="space-y-2">
         {layers.map((layer) => (
           <label
             key={layer.layer_id}
+            htmlFor={`layer-${layer.layer_id}`}
             className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition 
             ${
               selected.find((l) => l.table_name === layer.table_name)
@@ -96,14 +113,57 @@ export default function Sidebar({ setSelectedLayers, setBuffer }) {
           >
             <div className="flex items-center gap-2">
               <input
+                id={`layer-${layer.layer_id}`}
                 type="checkbox"
                 checked={
                   !!selected.find((l) => l.table_name === layer.table_name)
                 }
-                onChange={() => handleSelect(layer)}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  handleSelect(layer);
+                }}
               />
 
-              <span>{layerLabelMap[layer.table_name] || layer.table_name}</span>
+              <div className="flex flex-col">
+                <span>{layerLabelMap[layer.table_name]}</span>
+
+                {layer.table_name === "toilets_sanitation" &&
+                  showAnalysisOptions && (
+                    <div className="flex gap-3 mt-1 text-xs ml-5">
+                      {/* DEMAND */}
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={analysisLayers.demand}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setAnalysisLayers((prev) => ({
+                              ...prev,
+                              demand: checked,
+                            }));
+                          }}
+                        />
+                        Demand
+                      </label>
+
+                      {/* SUPPLY */}
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={analysisLayers.supply}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setAnalysisLayers((prev) => ({
+                              ...prev,
+                              supply: checked,
+                            }));
+                          }}
+                        />
+                        Supply
+                      </label>
+                    </div>
+                  )}
+              </div>
             </div>
           </label>
         ))}
@@ -127,7 +187,6 @@ export default function Sidebar({ setSelectedLayers, setBuffer }) {
 
             setBufferValue(meters);
 
-            // ✅ send km to parent
             setBuffer(meters / 1000);
           }}
           className="w-full accent-orange-400"

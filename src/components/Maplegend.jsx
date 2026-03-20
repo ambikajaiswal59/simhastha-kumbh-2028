@@ -1,5 +1,5 @@
-export default function MapLegend({ layer }) {
-  if (!layer) return null;
+export default function MapLegend({ analysisLayers }) {
+  if (!analysisLayers) return null;
 
   const demandLegend = [
     { label: "Very High", color: "rgba(107,4,4,0.6)" },
@@ -17,12 +17,12 @@ export default function MapLegend({ layer }) {
     { label: "Critical", color: "rgba(255,0,0,0.55)" },
   ];
 
-  const data = layer === "demand_layer" ? demandLegend : supplyLegend;
+  const data = analysisLayers.demand ? demandLegend : supplyLegend;
 
   return (
-    <div className="absolute bottom-4 left-4 bg-white shadow-lg rounded p-3 text-xs w-40">
+    <div className="absolute bottom-12 left-4 bg-white shadow-lg rounded p-3 text-xs w-40">
       <div className="font-bold mb-2">
-        {layer === "demand_layer" ? "Demand Analysis" : "Supply Analysis"}
+        {analysisLayers.demand ? "Demand Analysis" : "Supply Analysis"}
       </div>
 
       {data.map((item) => (

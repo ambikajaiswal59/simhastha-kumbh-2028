@@ -21,21 +21,19 @@ export default function OpenLayerMap({
   selectedTypes = [],
   updateAnalysis,
   setSelectedFeature,
-  layer,
+  analysisLayers,
 }) {
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const mapRef = useRef(null);
   const mapObj = useRef(null);
   const selectedRef = useRef([]);
   const vectorSourceRef = useRef(null);
   const vectorLayerRef = useRef(null);
   const layerRef = useRef({});
-
+  const demandLayerRef = useRef(null);
+  const supplyLayerRef = useRef(null);
+  const aoiLayerRef = useRef(null);
   // ✅ LOADER STATE
   const [loadingLayer, setLoadingLayer] = useState(false);
-
-  // ⏳ delay helper
-  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   // -----------------------------
   // ICON STYLE
@@ -114,76 +112,56 @@ export default function OpenLayerMap({
   // FETCH DEMAND
   // -----------------------------
   const fetchDemandLayer = async () => {
-    try {
-      setLoadingLayer(true);
+    if (demandLayerRef.current.getSource().getFeatures().length > 0) return;
 
-      const [res] = await Promise.all([
-        fetch(API.demand),
-        delay(5000),
-      ]);
+    setLoadingLayer(true);
 
-      const json = await res.json();
-      const geojson = json.data;
+    const res = await fetch(API.demand);
+    const json = await res.json();
 
-      const features = new GeoJSON().readFeatures(geojson, {
-        dataProjection: "EPSG:32643",
-        featureProjection: "EPSG:3857",
-      });
+    const features = new GeoJSON().readFeatures(json.data, {
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
+    });
 
-      vectorSourceRef.current.clear();
+    demandLayerRef.current.getSource().addFeatures(features);
 
-      features.forEach((f) => f.setStyle(demandLayerStyle(f)));
-      vectorSourceRef.current.addFeatures(features);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingLayer(false);
-    }
+    setLoadingLayer(false);
   };
 
   // -----------------------------
   // FETCH SUPPLY
   // -----------------------------
   const fetchSupplyLayer = async () => {
-    try {
-      setLoadingLayer(true);
+    if (supplyLayerRef.current.getSource().getFeatures().length > 0) return;
 
-      const [res] = await Promise.all([
-        fetch(API.supply),
-        delay(5000),
-      ]);
+    setLoadingLayer(true);
 
-      const json = await res.json();
-      const geojson = json.data;
+    const res = await fetch(API.supply);
+    const json = await res.json();
 
-      const features = new GeoJSON().readFeatures(geojson, {
-        dataProjection: "EPSG:32643",
-        featureProjection: "EPSG:3857",
-      });
+    const features = new GeoJSON().readFeatures(json.data, {
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
+    });
 
-      vectorSourceRef.current.clear();
+    supplyLayerRef.current.getSource().addFeatures(features);
 
-      features.forEach((f) => f.setStyle(supplyLayerStyle(f)));
-      vectorSourceRef.current.addFeatures(features);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingLayer(false);
-    }
+    setLoadingLayer(false);
   };
 
   // -----------------------------
-  // SWITCH LAYER
+  // FETCH AOI
   // -----------------------------
-  const getLayerSanitaion = () => {
-    if (loadingLayer) return; // prevent spam clicks
-
-    if (layer === "supply_layer") {
-      fetchDemandLayer();
-    } else if (layer === "demand_layer") {
-      fetchSupplyLayer();
-    }
-  };
+  const aoiStyle = new Style({
+    stroke: new Stroke({
+      color: "#000000",
+      width: 2,
+    }),
+    fill: new Fill({
+      color: "rgba(0,0,0,0.05)", // light transparent
+    }),
+  });
 
   useEffect(() => {
     selectedRef.current = selectedTypes;
@@ -193,27 +171,26 @@ export default function OpenLayerMap({
   // INIT MAP
   // -----------------------------
   useEffect(() => {
+    // ✅ Base vector layer (your existing)
     vectorSourceRef.current = new VectorSource();
 
     vectorLayerRef.current = new VectorLayer({
       source: vectorSourceRef.current,
     });
 
+    // ✅ CREATE MAP
     mapObj.current = new Map({
       target: mapRef.current,
-
       layers: [
         new TileLayer({
           source: new OSM(),
         }),
         vectorLayerRef.current,
       ],
-
       view: new View({
         center: fromLonLat([75.7683, 23.1824]),
         zoom: 15,
       }),
-
       controls: defaultControls({
         zoom: true,
         rotate: false,
@@ -221,6 +198,31 @@ export default function OpenLayerMap({
       }),
     });
 
+    // ✅ 🔥 ADD DEMAND + SUPPLY LAYERS HERE (IMPORTANT)
+
+    demandLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      style: demandLayerStyle,
+      visible: false,
+    });
+
+    supplyLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      style: supplyLayerStyle,
+      visible: false,
+    });
+    // ✅ AOI Layer
+    aoiLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      style: aoiStyle,
+    });
+    // 🔥 ORDER MATTERS (VERY IMPORTANT)
+    mapObj.current.addLayer(demandLayerRef.current); // bottom
+    mapObj.current.addLayer(supplyLayerRef.current); // top (swipe layer)
+    mapObj.current.addLayer(aoiLayerRef.current);
+
+    loadAOI();
+    // ✅ CLICK EVENT
     mapObj.current.on("click", (evt) => {
       const coord = toLonLat(evt.coordinate);
       const lat = coord[1];
@@ -239,14 +241,92 @@ export default function OpenLayerMap({
 
     return () => mapObj.current.setTarget(null);
   }, []);
+  // -----------------------------
+  // SWIPE CONTROL
+  // -----------------------------
+
+  useEffect(() => {
+    const layer = supplyLayerRef.current;
+    const swipe = document.getElementById("swipe");
+
+    if (!layer) return;
+
+    let prerender;
+    let postrender;
+
+    // ❌ If not both active → remove safely
+    if (!analysisLayers.demand || !analysisLayers.supply) {
+      if (layer.__prerender) layer.un("prerender", layer.__prerender);
+      if (layer.__postrender) layer.un("postrender", layer.__postrender);
+
+      layer.__prerender = null;
+      layer.__postrender = null;
+
+      mapObj.current?.render();
+      return;
+    }
+
+    if (!swipe) return;
+
+    // ✅ DEFINE HANDLERS
+    prerender = function (event) {
+      const ctx = event.context;
+      const mapSize = mapObj.current.getSize();
+      const width = mapSize[0] * (swipe.value / 100);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, width, mapSize[1]);
+      ctx.clip();
+    };
+
+    postrender = function (event) {
+      event.context.restore();
+    };
+
+    // ✅ SAVE HANDLERS ON LAYER
+    layer.__prerender = prerender;
+    layer.__postrender = postrender;
+
+    // ✅ ADD EVENTS
+    layer.on("prerender", prerender);
+    layer.on("postrender", postrender);
+
+    swipe.oninput = () => mapObj.current.render();
+
+    // ✅ CLEANUP
+    return () => {
+      if (layer.__prerender) layer.un("prerender", layer.__prerender);
+      if (layer.__postrender) layer.un("postrender", layer.__postrender);
+
+      layer.__prerender = null;
+      layer.__postrender = null;
+    };
+  }, [analysisLayers]);
+
+  useEffect(() => {
+    if (!demandLayerRef.current || !supplyLayerRef.current) return;
+
+    // DEMAND
+    if (analysisLayers.demand) {
+      fetchDemandLayer();
+      demandLayerRef.current.setVisible(true);
+    } else {
+      demandLayerRef.current.setVisible(false);
+    }
+
+    // SUPPLY
+    if (analysisLayers.supply) {
+      fetchSupplyLayer();
+      supplyLayerRef.current.setVisible(true);
+    } else {
+      supplyLayerRef.current.setVisible(false);
+    }
+  }, [analysisLayers]);
 
   // -----------------------------
   // LOAD DEMAND/SUPPLY
   // -----------------------------
-  useEffect(() => {
-    if (!layer) return;
-    getLayerSanitaion();
-  }, [layer]);
 
   // -----------------------------
   // LOAD TYPE LAYERS
@@ -324,6 +404,7 @@ export default function OpenLayerMap({
     })
       .then((res) => res.json())
       .then((res) => {
+        console.log("API RESPONSE:", res);
         if (res.status === "success") {
           updateAnalysis(type, res.data);
         }
@@ -331,18 +412,75 @@ export default function OpenLayerMap({
   };
 
   // -----------------------------
+  // AOI API
+  // -----------------------------
+  const loadAOI = async () => {
+    try {
+      const res = await fetch(API.aoi);
+      const json = await res.json();
+
+      console.log("AOI DATA:", json);
+
+      const features = new GeoJSON().readFeatures(json.data, {
+        featureProjection: "EPSG:3857",
+      });
+
+      aoiLayerRef.current.getSource().clear();
+      aoiLayerRef.current.getSource().addFeatures(features);
+
+      const extent = aoiLayerRef.current.getSource().getExtent();
+      mapObj.current.getView().fit(extent, {
+        padding: [40, 40, 40, 40],
+        duration: 800,
+      });
+    } catch (err) {
+      console.error("AOI error:", err);
+    }
+  };
+  // -----------------------------
   // UI
   // -----------------------------
   return (
     <div className="relative w-full h-full">
-      {/* 🗺️ MAP */}
+      {/*  MAP */}
       <div ref={mapRef} className="w-full h-full z-0" />
 
-      {/* 📊 LEGEND */}
-      <div className="absolute bottom-4 left-4 z-40">
-        <MapLegend layer={layer} />
-      </div>
+      {(analysisLayers.demand || analysisLayers.supply) &&
+        (console.log("analysisLayers in Map:", analysisLayers),
+        (
+          <div className="absolute bottom-4 left-4 z-40 transition-all duration-300">
+            <MapLegend analysisLayers={analysisLayers} />
+          </div>
+        ))}
+      {/*  SWIPE CONTROL */}
+      {analysisLayers.demand && analysisLayers.supply && (
+        <div
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 
+                  bg-white/95 backdrop-blur-md px-5 py-3 rounded-xl 
+                  shadow-lg border w-[320px]"
+        >
+          {/* Header */}
+          <div className="text-sm font-semibold text-gray-700 text-center mb-2">
+            Analysis Compare
+          </div>
 
+          {/* Labels */}
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <span>Demand</span>
+            <span>Supply</span>
+          </div>
+
+          {/* Slider */}
+          <input
+            id="swipe"
+            type="range"
+            min="0"
+            max="100"
+            defaultValue="50"
+            className="w-full accent-orange-500 cursor-pointer"
+          />
+        </div>
+      )}
       {/* ⏳ LOADER (TOP) */}
       {loadingLayer && (
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">

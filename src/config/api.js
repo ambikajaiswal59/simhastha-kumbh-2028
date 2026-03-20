@@ -9,4 +9,5 @@ export const API = {
 
   analysis: `${API_URL}/get_feature_count_avg_distance`,
   layerList: `${API_URL}/get_layer_list`,
+  aoi: `${API_URL}/aoi_layer`,
 };

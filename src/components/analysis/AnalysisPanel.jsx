@@ -1,10 +1,10 @@
 export default function AnalysisPanel({
-  buffer,
   selectedTypes = [],
   analysisData = {},
   selectedFeature,
-  setLayer,
-  layer
+  setAnalysisLayers,
+  analysisLayers,
+  setShowAnalysisOptions,
 }) {
   const TYPE_LABELS = {
     toilets_sanitation: "Toilet Sanitation",
@@ -31,8 +31,10 @@ export default function AnalysisPanel({
     "upd_time",
   ]);
   return (
-    <div className="w-80 bg-gray-100 p-4 shadow-lg border-l">
-      <h2 className="text-lg font-bold mb-4">Analysis Results</h2>
+    <div className="w-80 bg-gray-100 p-4 shadow-lg border-l h-screen overflow-y-auto">
+      <h2 className="text-lg font-bold mb-4 sticky top-0 bg-gray-100 z-10">
+        Analysis Results
+      </h2>
       {selectedTypes?.includes("toilets_sanitation") && (
         <div className="mt-4 flex gap-2">
           {/* Demand Button */}
@@ -41,32 +43,33 @@ export default function AnalysisPanel({
               padding: "8px 14px",
               borderRadius: "8px",
               border:
-                layer === "demand_layer"
+                analysisLayers.demand
                   ? "1px solid #dc2626"
                   : "1px solid #ccc",
-              backgroundColor: layer === "demand_layer" ? "#FFA500" : "#ffffff",
-              color: layer === "demand_layer" ? "#ffffff" : "#333",
+              backgroundColor: analysisLayers.demand ? "#FFA500" : "#ffffff",
+              color: analysisLayers.demand ? "#ffffff" : "#333",
               cursor: "pointer",
               fontSize: "13px",
               fontWeight: 500,
               transition: "all 0.2s ease",
               boxShadow:
-                layer === "demand_layer"
+                analysisLayers.demand
                   ? "0 2px 6px rgba(220,38,38,0.4)"
                   : "0 1px 3px rgba(0,0,0,0.1)",
             }}
             onMouseEnter={(e) => {
-              if (layer !== "demand_layer") {
+              if (!analysisLayers.demand) {
                 e.target.style.backgroundColor = "#f3f4f6";
               }
             }}
             onMouseLeave={(e) => {
-              if (layer !== "demand_layer") {
+              if (!analysisLayers.demand) {
                 e.target.style.backgroundColor = "#ffffff";
               }
             }}
             onClick={() => {
-              setLayer("demand_layer");
+              setAnalysisLayers((prev) => ({ ...prev, demand: true }));
+              setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
             }}
           >
             Demand Analysis
@@ -77,33 +80,33 @@ export default function AnalysisPanel({
               padding: "8px 14px",
               borderRadius: "8px",
               border:
-                layer === "supply_layer"
+                analysisLayers.supply
                   ? "1px solid #dc2626"
                   : "1px solid #ccc",
-              backgroundColor:
-                layer === "supply_layer" ? "#F08000" : "#ffffff",
-              color: layer === "supply_layer" ? "#ffffff" : "#333",
+              backgroundColor: analysisLayers.supply ? "#F08000" : "#ffffff",
+              color: analysisLayers.supply ? "#ffffff" : "#333",
               cursor: "pointer",
               fontSize: "13px",
               fontWeight: 500,
               transition: "all 0.2s ease",
               boxShadow:
-                layer === "supply_layer"
+                analysisLayers.supply
                   ? "0 2px 6px rgba(220,38,38,0.4)"
                   : "0 1px 3px rgba(0,0,0,0.1)",
             }}
             onMouseEnter={(e) => {
-              if (layer !== "supply_layer") {
+              if (!analysisLayers.supply) {
                 e.target.style.backgroundColor = "#f3f4f6";
               }
             }}
             onMouseLeave={(e) => {
-              if (layer !== "supply_layer") {
+              if (!analysisLayers.supply) {
                 e.target.style.backgroundColor = "#ffffff";
               }
             }}
             onClick={() => {
-              setLayer("supply_layer");
+              setAnalysisLayers((prev) => ({ ...prev, supply: true }));
+              setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
             }}
           >
             Supply Gap Analysis

@@ -3,13 +3,16 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 import OpenLayerMap from "../map/OpenLayerMap";
 import AnalysisPanel from "../analysis/AnalysisPanel";
-import { Layer } from "ol/layer";
+
 
 export default function MainLayout() {
   const [buffer, setBuffer] = useState(5);
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [layer, setLayer] = useState(null);
-
+  const [showAnalysisOptions, setShowAnalysisOptions] = useState(false);
+  const [analysisLayers, setAnalysisLayers] = useState({
+    demand: false,
+    supply: false,
+  });
   const [analysisData, setAnalysisData] = useState({});
 
   const [selectedFeature, setSelectedFeature] = useState(null);
@@ -21,21 +24,33 @@ export default function MainLayout() {
       [type]: data,
     }));
   };
-
+console.log("AnalysisPanel Props:", {
+  analysisData,
+  selectedTypes,
+  selectedFeature,
+  analysisLayers
+});
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col ">
       <Header />
 
       <div className="flex flex-1">
-        <Sidebar setBuffer={setBuffer} setSelectedLayers={setSelectedTypes} />
+        <Sidebar
+          setBuffer={setBuffer}
+          setSelectedLayers={setSelectedTypes}
+          analysisLayers={analysisLayers}
+          setAnalysisLayers={setAnalysisLayers}
+          showAnalysisOptions={showAnalysisOptions}
+        />
         <div className="flex-1">
           <OpenLayerMap
             buffer={buffer}
             selectedTypes={selectedTypes}
             updateAnalysis={updateAnalysis}
             setSelectedFeature={setSelectedFeature}
-            layer={layer}
-            setLayer={setLayer}
+           
+            
+            analysisLayers={analysisLayers}
           />
         </div>
 
@@ -44,8 +59,9 @@ export default function MainLayout() {
           selectedTypes={selectedTypes}
           analysisData={analysisData}
           selectedFeature={selectedFeature}
-          setLayer={setLayer}
-          layer={layer}
+          setAnalysisLayers={setAnalysisLayers}
+          analysisLayers={analysisLayers}
+          setShowAnalysisOptions={setShowAnalysisOptions}
         />
       </div>
     </div>
