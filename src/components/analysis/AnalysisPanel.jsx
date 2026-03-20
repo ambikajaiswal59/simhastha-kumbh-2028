@@ -6,7 +6,6 @@ export default function AnalysisPanel({
   setLayer,
   layer
 }) {
-  console.log(selectedFeature);
   const TYPE_LABELS = {
     toilets_sanitation: "Toilet Sanitation",
     road_network3: "Road Network",
@@ -14,7 +13,7 @@ export default function AnalysisPanel({
     parking_loc: "Parking Location",
   };
 
-  const IGNORE_KEYS = [
+  const IGNORE_KEYS = new Set([
     "temple",
     "parking",
     "junction",
@@ -30,7 +29,7 @@ export default function AnalysisPanel({
     "condition",
     "upd_date",
     "upd_time",
-  ];
+  ]);
   return (
     <div className="w-80 bg-gray-100 p-4 shadow-lg border-l">
       <h2 className="text-lg font-bold mb-4">Analysis Results</h2>
@@ -67,7 +66,6 @@ export default function AnalysisPanel({
               }
             }}
             onClick={() => {
-              console.log("Demand analysis enabled");
               setLayer("demand_layer");
             }}
           >
@@ -105,7 +103,6 @@ export default function AnalysisPanel({
               }
             }}
             onClick={() => {
-              console.log("Supply analysis enabled");
               setLayer("supply_layer");
             }}
           >
@@ -137,7 +134,7 @@ export default function AnalysisPanel({
               {selectedFeature && (
                 <div className="mt-3 border-t pt-2">
                   {Object.entries(selectedFeature)
-                    .filter(([key]) => !IGNORE_KEYS.includes(key)) // 🚀 filter here
+                    .filter(([key]) => !IGNORE_KEYS.has(key)) // 🚀 filter here
                     .map(([key, value]) => (
                       <div
                         key={key}
