@@ -4,7 +4,7 @@ import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import OSM from "ol/source/OSM";
-import { fromLonLat, toLonLat } from "ol/proj";
+import { fromLonLat, toLonLat, transform } from "ol/proj";
 import MapLegend from "../Maplegend";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
@@ -15,7 +15,6 @@ import { defaults as defaultControls } from "ol/control";
 import Circle from "ol/geom/Circle";
 import { Stroke, Fill, Style } from "ol/style";
 import * as turf from "@turf/turf";
-import { transform } from "ol/proj";
 
 export default function OpenLayerMap({
   buffer,
@@ -37,6 +36,8 @@ export default function OpenLayerMap({
   const bufferLayerRef = useRef(null);
   const [loadingLayer, setLoadingLayer] = useState(false);
   const bufferRef = useRef(buffer);
+  const [showLegend, setShowLegend] = useState(false);
+  const gapLayerRef = useRef(null);
   // -----------------------------
   // ICON STYLE
   // -----------------------------
@@ -151,6 +152,42 @@ export default function OpenLayerMap({
 
     setLoadingLayer(false);
   };
+  // -----------------------------
+  // FETCH Gap
+  // -----------------------------
+  const fetchGapLayer = async () => {
+    if (gapLayerRef.current.getSource().getFeatures().length > 0) return;
+
+    setLoadingLayer(true);
+
+    const res = await fetch(API.gap);
+    const json = await res.json();
+
+    const features = new GeoJSON().readFeatures(json.data, {
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
+    });
+
+    gapLayerRef.current.getSource().addFeatures(features);
+
+    setLoadingLayer(false);
+  };
+
+  const gapLayerStyle = (feature) => {
+  const gap = feature.get("Gap_Class");
+
+  let color = "rgba(200,200,200,0.4)";
+
+  if (gap === "Critical") color = "rgba(255,0,0,0.6)";
+  else if (gap === "Moderate") color = "rgba(255,165,0,0.6)";
+  else if (gap === "Low") color = "rgba(255,255,0,0.6)";
+  else if (gap === "Adequate") color = "rgba(0,255,0,0.6)";
+  else if (gap === "Oversupply") color = "rgba(0,120,255,0.6)";
+
+  return new Style({
+    fill: new Fill({ color }),
+  });
+};
 
   // -----------------------------
   // FETCH AOI
@@ -219,6 +256,12 @@ export default function OpenLayerMap({
       style: aoiStyle,
     });
 
+    gapLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      style: gapLayerStyle,
+      visible: false,
+    });
+
     const bufferLayer = new VectorLayer({
       source: new VectorSource(),
     });
@@ -230,7 +273,9 @@ export default function OpenLayerMap({
     mapObj.current.addLayer(demandLayerRef.current); // bottom
     mapObj.current.addLayer(supplyLayerRef.current); // top (swipe layer)
     mapObj.current.addLayer(aoiLayerRef.current);
-
+    mapObj.current.addLayer(gapLayerRef.current);
+    console.log("Gap Layer:", gapLayerRef.current);
+        console.log("Supply Layer:", supplyLayerRef.current);
     loadAOI();
     //  CLICK EVENT
     mapObj.current.on("click", (evt) => {
@@ -258,7 +303,12 @@ export default function OpenLayerMap({
   // -----------------------------
   // SWIPE CONTROL
   // -----------------------------
-
+useEffect(() => {
+console.log(
+"GAP FEATURES:",
+gapLayerRef.current?.getSource()?.getFeatures().length
+);
+}, [analysisLayers]);
   useEffect(() => {
     const layer = supplyLayerRef.current;
     const swipe = document.getElementById("swipe");
@@ -336,6 +386,14 @@ export default function OpenLayerMap({
     } else {
       supplyLayerRef.current.setVisible(false);
     }
+
+    // Gap
+    if (analysisLayers.gap) {
+      fetchGapLayer();
+      gapLayerRef.current.setVisible(true);
+    } else {
+      gapLayerRef.current.setVisible(false);
+    }
   }, [analysisLayers]);
 
   // -----------------------------
@@ -397,6 +455,10 @@ export default function OpenLayerMap({
         return "https://cdn-icons-png.flaticon.com/512/854/854878.png";
       case "road_network3":
         return "https://cdn-icons-png.flaticon.com/512/684/684809.png";
+      case "temple_ujjain":
+        return "https://cdn-icons-png.flaticon.com/512/3176/3176292.png";
+      case "junction":
+        return "https://cdn-icons-png.flaticon.com/512/1483/1483336.png";
       default:
         return "https://cdn-icons-png.flaticon.com/512/252/252025.png";
     }
@@ -472,7 +534,6 @@ export default function OpenLayerMap({
     const aoiGeometry = aoiFeatures[0].getGeometry();
 
     if (!aoiGeometry.intersectsCoordinate(coordinate)) {
-      console.log("Clicked outside AOI");
 
       return;
     }
@@ -538,7 +599,6 @@ export default function OpenLayerMap({
       const res = await fetch(API.aoi);
       const json = await res.json();
 
-      console.log("AOI DATA:", json);
 
       const features = new GeoJSON().readFeatures(json.data, {
         featureProjection: "EPSG:3857",
@@ -561,20 +621,35 @@ export default function OpenLayerMap({
   // -----------------------------
   return (
     <div className="relative w-full h-full">
-      {/*  MAP */}
+      {/* MAP */}
       <div ref={mapRef} className="w-full h-full z-0" />
 
-      {(analysisLayers.demand || analysisLayers.supply) && (
-        <div className="absolute bottom-4 left-4 z-40 transition-all duration-300">
-          <MapLegend analysisLayers={analysisLayers} />
+      {/* LEGEND BUTTON (RIGHT SIDE) */}
+      <div className="absolute right-4 top-4 z-[999]">
+        <button
+          onClick={() => setShowLegend((prev) => !prev)}
+          className="bg-white shadow-lg px-4 py-2 rounded-lg border text-sm font-semibold hover:bg-gray-100 transition"
+        >
+          📊 Legend
+        </button>
+      </div>
+
+      {/* LEGEND CARD */}
+      {showLegend && (
+        <div className="absolute right-4 top-16 z-[999]">
+          <MapLegend
+            analysisLayers={analysisLayers}
+            selectedTypes={selectedTypes}
+          />
         </div>
       )}
-      {/*  SWIPE CONTROL */}
+
+      {/* SWIPE CONTROL */}
       {analysisLayers.demand && analysisLayers.supply && (
         <div
           className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 
-                  bg-white/95 backdrop-blur-md px-5 py-3 rounded-xl 
-                  shadow-lg border w-[320px]"
+        bg-white/95 backdrop-blur-md px-5 py-3 rounded-xl 
+        shadow-lg border w-[320px]"
         >
           {/* Header */}
           <div className="text-sm font-semibold text-gray-700 text-center mb-2">
@@ -598,9 +673,10 @@ export default function OpenLayerMap({
           />
         </div>
       )}
-      {/* ⏳ LOADER (TOP) */}
+
+      {/* LOADING LAYER OVERLAY */}
       {loadingLayer && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[999]">
           <div className="bg-white px-6 py-3 rounded-lg shadow-lg text-lg font-semibold">
             Loading Layer...
           </div>

@@ -17,6 +17,8 @@ export default function Sidebar({
     "toilets_sanitation",
     "police_station",
     "parking_loc",
+    "temple_ujjain",
+    "junction"
   ];
 
   //  Labels + Icons
@@ -25,6 +27,8 @@ export default function Sidebar({
     police_station: "Police Station ",
     parking_loc: "Parking ",
     road_network3: "Road Network ",
+    temple_ujjain: "Temple Ujjain ",
+    junction: "Junctions "
   };
 
   //  Helper function to find layer by name
@@ -79,7 +83,7 @@ export default function Sidebar({
       //  RESET ANALYSIS if toilets removed
       if (layer.table_name === "toilets_sanitation" ) {
         setAnalysisLayers({
-          demand: false,
+          demand: true,
           supply: false,
         });
       }

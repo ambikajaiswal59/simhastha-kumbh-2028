@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import OpenLayerMap from "../map/OpenLayerMap";
@@ -11,6 +11,7 @@ export default function MainLayout() {
   const [analysisLayers, setAnalysisLayers] = useState({
     demand: false,
     supply: false,
+    gap: false,
   });
   const [analysisData, setAnalysisData] = useState({});
 
@@ -46,8 +47,7 @@ export default function MainLayout() {
             setBufferResults={setBufferResults}
           />
         </div>
-
-        <AnalysisPanel
+<AnalysisPanel
           buffer={buffer}
           selectedTypes={selectedTypes}
           analysisData={analysisData}
@@ -57,6 +57,7 @@ export default function MainLayout() {
           bufferResults={bufferResults}
           setShowAnalysisOptions={setShowAnalysisOptions}
         />
+        
       </div>
     </div>
   );
