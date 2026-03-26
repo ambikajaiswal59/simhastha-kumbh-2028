@@ -38,6 +38,7 @@ export default function OpenLayerMap({
   const bufferRef = useRef(buffer);
   const [showLegend, setShowLegend] = useState(false);
   const gapLayerRef = useRef(null);
+  const suitableLandRef = useRef(null);
   // -----------------------------
   // ICON STYLE
   // -----------------------------
@@ -174,20 +175,20 @@ export default function OpenLayerMap({
   };
 
   const gapLayerStyle = (feature) => {
-  const gap = feature.get("Gap_Class");
+    const gap = feature.get("Gap_Class");
 
-  let color = "rgba(200,200,200,0.4)";
+    let color = "rgba(200,200,200,0.4)";
 
-  if (gap === "Critical") color = "rgba(255,0,0,0.6)";
-  else if (gap === "Moderate") color = "rgba(255,165,0,0.6)";
-  else if (gap === "Low") color = "rgba(255,255,0,0.6)";
-  else if (gap === "Adequate") color = "rgba(0,255,0,0.6)";
-  else if (gap === "Oversupply") color = "rgba(0,120,255,0.6)";
+    if (gap === "Critical") color = "rgba(255,0,0,0.6)";
+    else if (gap === "Moderate") color = "rgba(255,165,0,0.6)";
+    else if (gap === "Low") color = "rgba(255,255,0,0.6)";
+    else if (gap === "Adequate") color = "rgba(0,255,0,0.6)";
+    else if (gap === "Oversupply") color = "rgba(0,120,255,0.6)";
 
-  return new Style({
-    fill: new Fill({ color }),
-  });
-};
+    return new Style({
+      fill: new Fill({ color }),
+    });
+  };
 
   // -----------------------------
   // FETCH AOI
@@ -266,6 +267,12 @@ export default function OpenLayerMap({
       source: new VectorSource(),
     });
 
+    suitableLandRef.current = new VectorLayer({
+      source: new VectorSource(),
+      style: suitableLandLayerStyle,
+      visible: false,
+    });
+
     mapObj.current.addLayer(bufferLayer);
 
     bufferLayerRef.current = bufferLayer;
@@ -274,9 +281,9 @@ export default function OpenLayerMap({
     mapObj.current.addLayer(supplyLayerRef.current); // top (swipe layer)
     mapObj.current.addLayer(aoiLayerRef.current);
     mapObj.current.addLayer(gapLayerRef.current);
-    console.log("Gap Layer:", gapLayerRef.current);
-        console.log("Supply Layer:", supplyLayerRef.current);
+    mapObj.current.addLayer(suitableLandRef.current);
     loadAOI();
+    suitableLand();
     //  CLICK EVENT
     mapObj.current.on("click", (evt) => {
       const coord = toLonLat(evt.coordinate);
@@ -303,12 +310,12 @@ export default function OpenLayerMap({
   // -----------------------------
   // SWIPE CONTROL
   // -----------------------------
-useEffect(() => {
-console.log(
-"GAP FEATURES:",
-gapLayerRef.current?.getSource()?.getFeatures().length
-);
-}, [analysisLayers]);
+  useEffect(() => {
+    console.log(
+      "GAP FEATURES:",
+      gapLayerRef.current?.getSource()?.getFeatures().length,
+    );
+  }, [analysisLayers]);
   useEffect(() => {
     const layer = supplyLayerRef.current;
     const swipe = document.getElementById("swipe");
@@ -369,7 +376,12 @@ gapLayerRef.current?.getSource()?.getFeatures().length
   }, [analysisLayers]);
 
   useEffect(() => {
-    if (!demandLayerRef.current || !supplyLayerRef.current) return;
+    if (
+      !demandLayerRef.current ||
+      !supplyLayerRef.current ||
+      !suitableLandRef.current
+    )
+      return;
 
     // DEMAND
     if (analysisLayers.demand) {
@@ -393,6 +405,14 @@ gapLayerRef.current?.getSource()?.getFeatures().length
       gapLayerRef.current.setVisible(true);
     } else {
       gapLayerRef.current.setVisible(false);
+    }
+
+    // SUPPLY
+    if (analysisLayers.suitable_land) {
+      fetchSupplyLayer();
+      suitableLandRef.current.setVisible(true);
+    } else {
+      suitableLandRef.current.setVisible(false);
     }
   }, [analysisLayers]);
 
@@ -534,7 +554,6 @@ gapLayerRef.current?.getSource()?.getFeatures().length
     const aoiGeometry = aoiFeatures[0].getGeometry();
 
     if (!aoiGeometry.intersectsCoordinate(coordinate)) {
-
       return;
     }
 
@@ -599,7 +618,6 @@ gapLayerRef.current?.getSource()?.getFeatures().length
       const res = await fetch(API.aoi);
       const json = await res.json();
 
-
       const features = new GeoJSON().readFeatures(json.data, {
         featureProjection: "EPSG:3857",
       });
@@ -616,6 +634,66 @@ gapLayerRef.current?.getSource()?.getFeatures().length
       console.error("AOI error:", err);
     }
   };
+
+  // -----------------------------
+  // LAND SUITABLE API
+  // -----------------------------
+  const suitableLand = async () => {
+    try {
+      debugger;
+      const res = await fetch(API.suitableLand);
+      const json = await res.json();
+
+      const features = new GeoJSON().readFeatures(json.data, {
+        featureProjection: "EPSG:3857",
+      });
+
+      suitableLandRef.current.getSource().clear();
+      suitableLandRef.current.getSource().addFeatures(features);
+
+      const extent = suitableLandRef.current.getSource().getExtent();
+      mapObj.current.getView().fit(extent, {
+        padding: [40, 40, 40, 40],
+        duration: 800,
+      });
+    } catch (err) {
+      console.error("AOI error:", err);
+    }
+  };
+
+  const suitableLandLayerStyle = (feature) => {
+    const isSuitable = feature.get("Suitable");
+    const value = feature.get("VALUE");
+    const cat = feature.get("Cat");
+
+    let color;
+
+    // ❌ Not suitable → greyed out
+    if (!isSuitable) {
+      color = "rgba(180,180,180,0.4)";
+    } else {
+      // ✅ Suitable → color based on VALUE
+      if (value <= 3) {
+        color = "rgba(255,0,0,0.6)"; // Low value → red
+      } else if (value <= 6) {
+        color = "rgba(255,165,0,0.6)"; // Medium → orange
+      } else if (value <= 8) {
+        color = "rgba(255,255,0,0.6)"; // Good → yellow
+      } else {
+        color = "rgba(0,200,0,0.6)"; // High → green
+      }
+
+      // 🎨 Optional: tweak based on category
+      if (cat === "Built") {
+        color = color.replace("0.6", "0.8"); // more opacity
+      }
+    }
+
+    return new Style({
+      fill: new Fill({ color }),
+    });
+  };
+
   // -----------------------------
   // UI
   // -----------------------------

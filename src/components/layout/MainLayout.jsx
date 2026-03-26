@@ -12,17 +12,32 @@ export default function MainLayout() {
     demand: false,
     supply: false,
     gap: false,
+    suitable_land: false,
   });
   const [analysisData, setAnalysisData] = useState({});
 
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [bufferResults, setBufferResults] = useState([]);
+
+  const [toiletSheet, setToiletSheet] = useState("");
+  const [proximity, setProximity] = useState("");
+
+  // Land Suaitablity Dropdown state
+  const [showLandSuitableDropdown, setShowLandSuitableDropdown] =
+    useState(false);
+
   // 🔥 Update analysis data
   const updateAnalysis = (type, data) => {
     setAnalysisData((prev) => ({
       ...prev,
       [type]: data,
     }));
+  };
+
+  const handleToiletAnalysis = () => {
+    alert(
+      `This is the no of toilet sheet ${toiletSheet} with aproximity with the ${proximity}`,
+    );
   };
 
   return (
@@ -47,7 +62,7 @@ export default function MainLayout() {
             setBufferResults={setBufferResults}
           />
         </div>
-<AnalysisPanel
+        <AnalysisPanel
           buffer={buffer}
           selectedTypes={selectedTypes}
           analysisData={analysisData}
@@ -56,8 +71,14 @@ export default function MainLayout() {
           analysisLayers={analysisLayers}
           bufferResults={bufferResults}
           setShowAnalysisOptions={setShowAnalysisOptions}
+          showLandSuitableDropdown={showLandSuitableDropdown}
+          setShowLandSuitableDropdown={setShowLandSuitableDropdown}
+          proximity={proximity}
+          setProximity={setProximity}
+          toiletSheet={toiletSheet}
+          setToiletSheet={setToiletSheet}
+          handleToiletAnalysis={handleToiletAnalysis}
         />
-        
       </div>
     </div>
   );

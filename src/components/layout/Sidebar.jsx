@@ -18,7 +18,7 @@ export default function Sidebar({
     "police_station",
     "parking_loc",
     "temple_ujjain",
-    "junction"
+    "junction",
   ];
 
   //  Labels + Icons
@@ -28,7 +28,7 @@ export default function Sidebar({
     parking_loc: "Parking ",
     road_network3: "Road Network ",
     temple_ujjain: "Temple Ujjain ",
-    junction: "Junctions "
+    junction: "Junctions ",
   };
 
   //  Helper function to find layer by name
@@ -45,9 +45,7 @@ export default function Sidebar({
 
     setLayers(filtered);
 
-    const defaultLayer = filtered.find(
-      (l) => l.table_name === "road_network3",
-    );
+    const defaultLayer = filtered.find((l) => l.table_name === "road_network3");
 
     if (defaultLayer) {
       setSelected([defaultLayer]);
@@ -81,7 +79,7 @@ export default function Sidebar({
       updated = selected.filter((l) => l.table_name !== layer.table_name);
 
       //  RESET ANALYSIS if toilets removed
-      if (layer.table_name === "toilets_sanitation" ) {
+      if (layer.table_name === "toilets_sanitation") {
         setAnalysisLayers({
           demand: true,
           supply: false,
@@ -94,8 +92,6 @@ export default function Sidebar({
     setSelected(updated);
     setSelectedLayers(updated.map((l) => l.table_name));
   };
-
-
 
   return (
     <div className="w-72 bg-gradient-to-b from-[#0f2a44] to-[#133b5c] text-white p-5 shadow-xl border-r border-orange-500/20">
@@ -164,6 +160,20 @@ export default function Sidebar({
                           }}
                         />
                         Supply
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={analysisLayers.suitable_land}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setAnalysisLayers((prev) => ({
+                              ...prev,
+                              suitable_land: checked,
+                            }));
+                          }}
+                        />
+                        Land Suitable
                       </label>
                     </div>
                   )}
