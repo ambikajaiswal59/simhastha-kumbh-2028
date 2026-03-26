@@ -4,17 +4,17 @@ import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import OSM from "ol/source/OSM";
-import { fromLonLat, toLonLat } from "ol/proj";
-import Stroke from "ol/style/Stroke";
-import Fill from "ol/style/Fill";
+import { fromLonLat, toLonLat, transform } from "ol/proj";
 import MapLegend from "../Maplegend";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
-import Style from "ol/style/Style";
 import Icon from "ol/style/Icon";
 import { API } from "../../config/api";
 import { defaults as defaultControls } from "ol/control";
+import Circle from "ol/geom/Circle";
+import { Stroke, Fill, Style } from "ol/style";
+import * as turf from "@turf/turf";
 
 export default function OpenLayerMap({
   buffer,
@@ -22,6 +22,7 @@ export default function OpenLayerMap({
   updateAnalysis,
   setSelectedFeature,
   analysisLayers,
+  setBufferResults,
 }) {
   const mapRef = useRef(null);
   const mapObj = useRef(null);
@@ -32,9 +33,11 @@ export default function OpenLayerMap({
   const demandLayerRef = useRef(null);
   const supplyLayerRef = useRef(null);
   const aoiLayerRef = useRef(null);
-  // ✅ LOADER STATE
+  const bufferLayerRef = useRef(null);
   const [loadingLayer, setLoadingLayer] = useState(false);
-
+  const bufferRef = useRef(buffer);
+  const [showLegend, setShowLegend] = useState(false);
+  const gapLayerRef = useRef(null);
   // -----------------------------
   // ICON STYLE
   // -----------------------------
@@ -149,6 +152,42 @@ export default function OpenLayerMap({
 
     setLoadingLayer(false);
   };
+  // -----------------------------
+  // FETCH Gap
+  // -----------------------------
+  const fetchGapLayer = async () => {
+    if (gapLayerRef.current.getSource().getFeatures().length > 0) return;
+
+    setLoadingLayer(true);
+
+    const res = await fetch(API.gap);
+    const json = await res.json();
+
+    const features = new GeoJSON().readFeatures(json.data, {
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
+    });
+
+    gapLayerRef.current.getSource().addFeatures(features);
+
+    setLoadingLayer(false);
+  };
+
+  const gapLayerStyle = (feature) => {
+  const gap = feature.get("Gap_Class");
+
+  let color = "rgba(200,200,200,0.4)";
+
+  if (gap === "Critical") color = "rgba(255,0,0,0.6)";
+  else if (gap === "Moderate") color = "rgba(255,165,0,0.6)";
+  else if (gap === "Low") color = "rgba(255,255,0,0.6)";
+  else if (gap === "Adequate") color = "rgba(0,255,0,0.6)";
+  else if (gap === "Oversupply") color = "rgba(0,120,255,0.6)";
+
+  return new Style({
+    fill: new Fill({ color }),
+  });
+};
 
   // -----------------------------
   // FETCH AOI
@@ -171,14 +210,14 @@ export default function OpenLayerMap({
   // INIT MAP
   // -----------------------------
   useEffect(() => {
-    // ✅ Base vector layer (your existing)
+    //  Base vector layer (your existing)
     vectorSourceRef.current = new VectorSource();
 
     vectorLayerRef.current = new VectorLayer({
       source: vectorSourceRef.current,
     });
 
-    // ✅ CREATE MAP
+    //  CREATE MAP
     mapObj.current = new Map({
       target: mapRef.current,
       layers: [
@@ -198,7 +237,7 @@ export default function OpenLayerMap({
       }),
     });
 
-    // ✅ 🔥 ADD DEMAND + SUPPLY LAYERS HERE (IMPORTANT)
+    //  ADD DEMAND + SUPPLY LAYERS HERE (IMPORTANT)
 
     demandLayerRef.current = new VectorLayer({
       source: new VectorSource(),
@@ -211,18 +250,34 @@ export default function OpenLayerMap({
       style: supplyLayerStyle,
       visible: false,
     });
-    // ✅ AOI Layer
+    //  AOI Layer
     aoiLayerRef.current = new VectorLayer({
       source: new VectorSource(),
       style: aoiStyle,
     });
-    // 🔥 ORDER MATTERS (VERY IMPORTANT)
+
+    gapLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      style: gapLayerStyle,
+      visible: false,
+    });
+
+    const bufferLayer = new VectorLayer({
+      source: new VectorSource(),
+    });
+
+    mapObj.current.addLayer(bufferLayer);
+
+    bufferLayerRef.current = bufferLayer;
+    //  ORDER MATTERS (VERY IMPORTANT)
     mapObj.current.addLayer(demandLayerRef.current); // bottom
     mapObj.current.addLayer(supplyLayerRef.current); // top (swipe layer)
     mapObj.current.addLayer(aoiLayerRef.current);
-
+    mapObj.current.addLayer(gapLayerRef.current);
+    console.log("Gap Layer:", gapLayerRef.current);
+        console.log("Supply Layer:", supplyLayerRef.current);
     loadAOI();
-    // ✅ CLICK EVENT
+    //  CLICK EVENT
     mapObj.current.on("click", (evt) => {
       const coord = toLonLat(evt.coordinate);
       const lat = coord[1];
@@ -237,6 +292,10 @@ export default function OpenLayerMap({
       selectedRef.current.forEach((type) => {
         fetchAnalysis(type, lat, lon);
       });
+
+      if (bufferRef.current > 0) {
+        runBufferAnalysis(evt.coordinate);
+      }
     });
 
     return () => mapObj.current.setTarget(null);
@@ -244,7 +303,12 @@ export default function OpenLayerMap({
   // -----------------------------
   // SWIPE CONTROL
   // -----------------------------
-
+useEffect(() => {
+console.log(
+"GAP FEATURES:",
+gapLayerRef.current?.getSource()?.getFeatures().length
+);
+}, [analysisLayers]);
   useEffect(() => {
     const layer = supplyLayerRef.current;
     const swipe = document.getElementById("swipe");
@@ -254,7 +318,7 @@ export default function OpenLayerMap({
     let prerender;
     let postrender;
 
-    // ❌ If not both active → remove safely
+    //  If not both active → remove safely
     if (!analysisLayers.demand || !analysisLayers.supply) {
       if (layer.__prerender) layer.un("prerender", layer.__prerender);
       if (layer.__postrender) layer.un("postrender", layer.__postrender);
@@ -268,7 +332,7 @@ export default function OpenLayerMap({
 
     if (!swipe) return;
 
-    // ✅ DEFINE HANDLERS
+    //  DEFINE HANDLERS
     prerender = function (event) {
       const ctx = event.context;
       const mapSize = mapObj.current.getSize();
@@ -284,17 +348,17 @@ export default function OpenLayerMap({
       event.context.restore();
     };
 
-    // ✅ SAVE HANDLERS ON LAYER
+    //  SAVE HANDLERS ON LAYER
     layer.__prerender = prerender;
     layer.__postrender = postrender;
 
-    // ✅ ADD EVENTS
+    //  ADD EVENTS
     layer.on("prerender", prerender);
     layer.on("postrender", postrender);
 
     swipe.oninput = () => mapObj.current.render();
 
-    // ✅ CLEANUP
+    //  CLEANUP
     return () => {
       if (layer.__prerender) layer.un("prerender", layer.__prerender);
       if (layer.__postrender) layer.un("postrender", layer.__postrender);
@@ -322,12 +386,22 @@ export default function OpenLayerMap({
     } else {
       supplyLayerRef.current.setVisible(false);
     }
+
+    // Gap
+    if (analysisLayers.gap) {
+      fetchGapLayer();
+      gapLayerRef.current.setVisible(true);
+    } else {
+      gapLayerRef.current.setVisible(false);
+    }
   }, [analysisLayers]);
 
   // -----------------------------
   // LOAD DEMAND/SUPPLY
   // -----------------------------
-
+  useEffect(() => {
+    bufferRef.current = buffer;
+  }, [buffer]);
   // -----------------------------
   // LOAD TYPE LAYERS
   // -----------------------------
@@ -359,7 +433,7 @@ export default function OpenLayerMap({
 
           const layerObj = new VectorLayer({
             source,
-            style: (f) => getStyle(f, type),
+            style: createLayerStyle(type),
           });
 
           mapObj.current.addLayer(layerObj);
@@ -381,11 +455,118 @@ export default function OpenLayerMap({
         return "https://cdn-icons-png.flaticon.com/512/854/854878.png";
       case "road_network3":
         return "https://cdn-icons-png.flaticon.com/512/684/684809.png";
+      case "temple_ujjain":
+        return "https://cdn-icons-png.flaticon.com/512/3176/3176292.png";
+      case "junction":
+        return "https://cdn-icons-png.flaticon.com/512/1483/1483336.png";
       default:
         return "https://cdn-icons-png.flaticon.com/512/252/252025.png";
     }
   };
 
+  const createLayerStyle = (type) => (f) => getStyle(f, type);
+  const drawBufferCircle = (coordinate, bufferDistance) => {
+    if (!bufferLayerRef.current) return;
+
+    bufferLayerRef.current.getSource().clear();
+
+    const format = new GeoJSON();
+
+    // STEP 1: Convert coordinate 3857 → 4326
+    const coord4326 = transform(coordinate, "EPSG:3857", "EPSG:4326");
+
+    // STEP 2: Create buffer polygon in Turf (correct projection)
+    const point = turf.point(coord4326);
+
+    const buffer = turf.buffer(
+      point,
+      bufferDistance / 1000, // meters → km
+      { units: "kilometers" },
+    );
+
+    // STEP 3: Get AOI feature
+    const aoiFeatures = aoiLayerRef.current?.getSource()?.getFeatures();
+
+    if (!aoiFeatures || aoiFeatures.length === 0) return;
+
+    // Convert AOI geometry → GeoJSON 4326
+    const aoiGeoJSON3857 = format.writeFeatureObject(aoiFeatures[0]);
+
+    const aoiGeoJSON4326 = turf.toWgs84(aoiGeoJSON3857);
+
+    // STEP 4: Clip buffer with AOI
+    const clipped = turf.intersect(
+      turf.featureCollection([buffer, aoiGeoJSON4326]),
+    );
+
+    if (!clipped) return;
+
+    // STEP 5: Convert back 4326 → 3857
+    const clipped3857 = turf.toMercator(clipped);
+
+    // STEP 6: Render on map
+    const clippedFeature = format.readFeature(clipped3857);
+
+    clippedFeature.setStyle(
+      new Style({
+        stroke: new Stroke({
+          color: "#ff0000",
+          width: 3,
+          lineDash: [6, 6],
+        }),
+        fill: new Fill({
+          color: "rgba(255,0,0,0.08)",
+        }),
+      }),
+    );
+
+    bufferLayerRef.current.getSource().addFeature(clippedFeature);
+  };
+  const runBufferAnalysis = (coordinate) => {
+    const bufferDistance = bufferRef.current * 1000;
+
+    const circleGeom = new Circle(coordinate, bufferDistance);
+
+    const aoiFeatures = aoiLayerRef.current.getSource().getFeatures();
+
+    if (!aoiFeatures.length) return;
+
+    const aoiGeometry = aoiFeatures[0].getGeometry();
+
+    if (!aoiGeometry.intersectsCoordinate(coordinate)) {
+
+      return;
+    }
+
+    drawBufferCircle(coordinate, bufferDistance);
+
+    const extent = circleGeom.getExtent();
+
+    findFeaturesInsideBuffer(extent);
+  };
+
+  const findFeaturesInsideBuffer = (extent) => {
+    if (!mapObj.current) return;
+
+    const results = [];
+
+    Object.entries(layerRef.current).forEach(([layerName, layer]) => {
+      const source = layer.getSource();
+
+      if (!source) return;
+
+      const features = source.getFeaturesInExtent(extent);
+
+      if (features.length > 0) {
+        results.push({
+          layer: layerName,
+          count: features.length,
+        });
+      }
+    });
+
+    setBufferResults(results);
+  };
   // -----------------------------
   // ANALYSIS API
   // -----------------------------
@@ -404,7 +585,6 @@ export default function OpenLayerMap({
     })
       .then((res) => res.json())
       .then((res) => {
-        console.log("API RESPONSE:", res);
         if (res.status === "success") {
           updateAnalysis(type, res.data);
         }
@@ -419,7 +599,6 @@ export default function OpenLayerMap({
       const res = await fetch(API.aoi);
       const json = await res.json();
 
-      console.log("AOI DATA:", json);
 
       const features = new GeoJSON().readFeatures(json.data, {
         featureProjection: "EPSG:3857",
@@ -442,22 +621,35 @@ export default function OpenLayerMap({
   // -----------------------------
   return (
     <div className="relative w-full h-full">
-      {/*  MAP */}
+      {/* MAP */}
       <div ref={mapRef} className="w-full h-full z-0" />
 
-      {(analysisLayers.demand || analysisLayers.supply) &&
-        (console.log("analysisLayers in Map:", analysisLayers),
-        (
-          <div className="absolute bottom-4 left-4 z-40 transition-all duration-300">
-            <MapLegend analysisLayers={analysisLayers} />
-          </div>
-        ))}
-      {/*  SWIPE CONTROL */}
+      {/* LEGEND BUTTON (RIGHT SIDE) */}
+      <div className="absolute right-4 top-4 z-[999]">
+        <button
+          onClick={() => setShowLegend((prev) => !prev)}
+          className="bg-white shadow-lg px-4 py-2 rounded-lg border text-sm font-semibold hover:bg-gray-100 transition"
+        >
+          📊 Legend
+        </button>
+      </div>
+
+      {/* LEGEND CARD */}
+      {showLegend && (
+        <div className="absolute right-4 top-16 z-[999]">
+          <MapLegend
+            analysisLayers={analysisLayers}
+            selectedTypes={selectedTypes}
+          />
+        </div>
+      )}
+
+      {/* SWIPE CONTROL */}
       {analysisLayers.demand && analysisLayers.supply && (
         <div
           className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 
-                  bg-white/95 backdrop-blur-md px-5 py-3 rounded-xl 
-                  shadow-lg border w-[320px]"
+        bg-white/95 backdrop-blur-md px-5 py-3 rounded-xl 
+        shadow-lg border w-[320px]"
         >
           {/* Header */}
           <div className="text-sm font-semibold text-gray-700 text-center mb-2">
@@ -481,9 +673,10 @@ export default function OpenLayerMap({
           />
         </div>
       )}
-      {/* ⏳ LOADER (TOP) */}
+
+      {/* LOADING LAYER OVERLAY */}
       {loadingLayer && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[999]">
           <div className="bg-white px-6 py-3 rounded-lg shadow-lg text-lg font-semibold">
             Loading Layer...
           </div>

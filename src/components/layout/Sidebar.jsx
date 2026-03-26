@@ -11,27 +11,31 @@ export default function Sidebar({
   const [selected, setSelected] = useState([{ table_name: "road_network3" }]);
   const [bufferValue, setBufferValue] = useState(300);
 
-  // ✅ Allowed layers only
+  //  Allowed layers only
   const allowedLayers = [
     "road_network3",
     "toilets_sanitation",
     "police_station",
     "parking_loc",
+    "temple_ujjain",
+    "junction"
   ];
 
-  // ✅ Labels + Icons
+  //  Labels + Icons
   const layerLabelMap = {
     toilets_sanitation: "Toilets Sanitation ",
     police_station: "Police Station ",
     parking_loc: "Parking ",
     road_network3: "Road Network ",
+    temple_ujjain: "Temple Ujjain ",
+    junction: "Junctions "
   };
 
-  // ✅ Helper function to find layer by name
+  //  Helper function to find layer by name
   const findLayerByName = (data, name) =>
     data.find((l) => l.table_name === name);
 
-  // ✅ Helper function to handle layer data
+  //  Helper function to handle layer data
   const handleLayerData = (data) => {
     if (!data?.data) return;
 
@@ -51,7 +55,7 @@ export default function Sidebar({
     }
   };
 
-  // ✅ Fetch layers from backend
+  //  Fetch layers from backend
   useEffect(() => {
     fetch(API.layerList, {
       method: "POST",
@@ -67,7 +71,7 @@ export default function Sidebar({
       });
   }, []);
 
-  // ✅ Handle checkbox selection
+  //  Handle checkbox selection
   const handleSelect = (layer) => {
     let updated;
 
@@ -76,10 +80,10 @@ export default function Sidebar({
     if (isSelected) {
       updated = selected.filter((l) => l.table_name !== layer.table_name);
 
-      // 🔥 RESET ANALYSIS if toilets removed
+      //  RESET ANALYSIS if toilets removed
       if (layer.table_name === "toilets_sanitation" ) {
         setAnalysisLayers({
-          demand: false,
+          demand: true,
           supply: false,
         });
       }
@@ -129,7 +133,7 @@ export default function Sidebar({
 
                 {layer.table_name === "toilets_sanitation" &&
                   showAnalysisOptions && (
-                    <div className="flex gap-3 mt-1 text-xs ml-5">
+                    <div className="flex flex-col gap-2 mt-1 text-xs ml-5">
                       {/* DEMAND */}
                       <label className="flex items-center gap-1 cursor-pointer">
                         <input

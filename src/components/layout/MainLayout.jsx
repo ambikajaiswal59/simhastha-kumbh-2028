@@ -1,22 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import OpenLayerMap from "../map/OpenLayerMap";
 import AnalysisPanel from "../analysis/AnalysisPanel";
 
-
 export default function MainLayout() {
-  const [buffer, setBuffer] = useState(5);
+  const [buffer, setBuffer] = useState(0.3);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [showAnalysisOptions, setShowAnalysisOptions] = useState(false);
   const [analysisLayers, setAnalysisLayers] = useState({
     demand: false,
     supply: false,
+    gap: false,
   });
   const [analysisData, setAnalysisData] = useState({});
 
   const [selectedFeature, setSelectedFeature] = useState(null);
-
+  const [bufferResults, setBufferResults] = useState([]);
   // 🔥 Update analysis data
   const updateAnalysis = (type, data) => {
     setAnalysisData((prev) => ({
@@ -24,12 +24,7 @@ export default function MainLayout() {
       [type]: data,
     }));
   };
-console.log("AnalysisPanel Props:", {
-  analysisData,
-  selectedTypes,
-  selectedFeature,
-  analysisLayers
-});
+
   return (
     <div className="h-screen flex flex-col ">
       <Header />
@@ -48,21 +43,21 @@ console.log("AnalysisPanel Props:", {
             selectedTypes={selectedTypes}
             updateAnalysis={updateAnalysis}
             setSelectedFeature={setSelectedFeature}
-           
-            
             analysisLayers={analysisLayers}
+            setBufferResults={setBufferResults}
           />
         </div>
-
-        <AnalysisPanel
+<AnalysisPanel
           buffer={buffer}
           selectedTypes={selectedTypes}
           analysisData={analysisData}
           selectedFeature={selectedFeature}
           setAnalysisLayers={setAnalysisLayers}
           analysisLayers={analysisLayers}
+          bufferResults={bufferResults}
           setShowAnalysisOptions={setShowAnalysisOptions}
         />
+        
       </div>
     </div>
   );
