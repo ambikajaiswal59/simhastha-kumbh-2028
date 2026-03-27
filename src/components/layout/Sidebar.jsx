@@ -23,12 +23,12 @@ export default function Sidebar({
 
   //  Labels + Icons
   const layerLabelMap = {
-    toilets_sanitation: "Toilets Sanitation ",
-    police_station: "Police Station ",
+    toilets_sanitation: "Toilet",
+    police_station: "Police Station",
     parking_loc: "Parking ",
-    road_network3: "Road Network ",
-    temple_ujjain: "Temple Ujjain ",
-    junction: "Junctions ",
+    road_network3: "Road",
+    temple_ujjain: "Temple Ujjain",
+    junction: "Junctions",
   };
 
   //  Helper function to find layer by name
@@ -71,6 +71,7 @@ export default function Sidebar({
 
   //  Handle checkbox selection
   const handleSelect = (layer) => {
+    debugger;
     let updated;
 
     const isSelected = selected.find((l) => l.table_name === layer.table_name);
@@ -130,6 +131,21 @@ export default function Sidebar({
                 {layer.table_name === "toilets_sanitation" &&
                   showAnalysisOptions && (
                     <div className="flex flex-col gap-2 mt-1 text-xs ml-5">
+                      {/* SUPPLY */}
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={analysisLayers.supply}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setAnalysisLayers((prev) => ({
+                              ...prev,
+                              supply: checked,
+                            }));
+                          }}
+                        />
+                        Supply
+                      </label>
                       {/* DEMAND */}
                       <label className="flex items-center gap-1 cursor-pointer">
                         <input
@@ -146,21 +162,6 @@ export default function Sidebar({
                         Demand
                       </label>
 
-                      {/* SUPPLY */}
-                      <label className="flex items-center gap-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={analysisLayers.supply}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setAnalysisLayers((prev) => ({
-                              ...prev,
-                              supply: checked,
-                            }));
-                          }}
-                        />
-                        Supply
-                      </label>
                       <label className="flex items-center gap-1 cursor-pointer">
                         <input
                           type="checkbox"

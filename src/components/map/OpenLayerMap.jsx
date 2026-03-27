@@ -83,11 +83,15 @@ export default function OpenLayerMap({
     const demandClass = feature.get("Class");
     let color = "rgba(200,200,200,0.4)";
 
-    if (demandClass === "Very High") color = "rgba(107, 4, 4, 0.6)";
-    else if (demandClass === "High") color = "rgba(255,0,0,0.6)";
-    else if (demandClass === "Moderate") color = "rgba(255,165,0,0.6)";
-    else if (demandClass === "Low") color = "rgba(255,255,0,0.6)";
-    else if (demandClass === "Very Low") color = "rgba(0,255,0,0.6)";
+    if (demandClass === "Very High")
+      color = "#004562"; //"rgba(107, 4, 4, 0.6)";
+    else if (demandClass === "High")
+      color = "#007DB3"; //"rgba(255,0,0,0.6)";
+    else if (demandClass === "Moderate")
+      color = "#009DE1"; //"rgba(255,165,0,0.6)";
+    else if (demandClass === "Low")
+      color = "#57CDFF"; //"rgba(255,255,0,0.6)";
+    else if (demandClass === "Very Low") color = "#85DAFF"; //"rgba(0,255,0,0.6)";
 
     return new Style({
       fill: new Fill({ color }),
@@ -101,11 +105,15 @@ export default function OpenLayerMap({
     const gap = feature.get("Gap_Class");
     let color = "rgba(200,200,200,0.4)";
 
-    if (gap === "Adequate") color = "rgba(0,180,0,0.45)";
-    else if (gap === "Oversupply") color = "rgba(0,120,255,0.45)";
-    else if (gap === "Low") color = "rgba(255,255,0,0.45)";
-    else if (gap === "Moderate") color = "rgba(255,165,0,0.45)";
-    else if (gap === "Critical") color = "rgba(255,0,0,0.55)";
+    if (gap === "Adequate")
+      color = "#DBCEA5"; //"rgba(0,180,0,0.45)";
+    else if (gap === "Oversupply")
+      color = "#ECE7D1"; //"rgba(0,120,255,0.45)";
+    else if (gap === "Low")
+      color = "#8A7650"; //"rgba(255,255,0,0.45)";
+    else if (gap === "Moderate")
+      color = "#A03A13"; //"rgba(255,165,0,0.45)";
+    else if (gap === "Critical") color = "#562F00"; //"rgba(255,0,0,0.55)";
 
     return new Style({
       fill: new Fill({ color }),
@@ -662,31 +670,20 @@ export default function OpenLayerMap({
   };
 
   const suitableLandLayerStyle = (feature) => {
-    const isSuitable = feature.get("Suitable");
-    const value = feature.get("VALUE");
-    const cat = feature.get("Cat");
+    const priority = feature.get("priority");
 
-    let color;
+    let color = "rgba(255,255,255,0.3)"; // fallback
 
-    // ❌ Not suitable → greyed out
-    if (!isSuitable) {
-      color = "rgba(180,180,180,0.4)";
-    } else {
-      // ✅ Suitable → color based on VALUE
-      if (value <= 3) {
-        color = "rgba(255,0,0,0.6)"; // Low value → red
-      } else if (value <= 6) {
-        color = "rgba(255,165,0,0.6)"; // Medium → orange
-      } else if (value <= 8) {
-        color = "rgba(255,255,0,0.6)"; // Good → yellow
-      } else {
-        color = "rgba(0,200,0,0.6)"; // High → green
-      }
-
-      // 🎨 Optional: tweak based on category
-      if (cat === "Built") {
-        color = color.replace("0.6", "0.8"); // more opacity
-      }
+    if (priority >= 10.5 && priority < 21.5) {
+      color = "rgba(255,182,193,0.5)"; // light red
+    } else if (priority >= 21.5 && priority < 26.5) {
+      color = "rgba(255,120,120,0.6)";
+    } else if (priority >= 26.5 && priority < 31) {
+      color = "rgba(255,80,80,0.7)";
+    } else if (priority >= 31 && priority < 40) {
+      color = "rgba(220,40,40,0.8)";
+    } else if (priority >= 40 && priority <= 55) {
+      color = "rgba(139,0,0,0.9)"; // dark red
     }
 
     return new Style({

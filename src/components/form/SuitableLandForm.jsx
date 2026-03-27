@@ -22,7 +22,7 @@ const SuitableLandForm = ({
     >
       {/* Toilet Sheet Dropdown */}
       <FormControl fullWidth size="small">
-        <InputLabel id="toilet-sheet-label">No. of Toilet Sheet</InputLabel>
+        <InputLabel id="toilet-sheet-label">No. of Toilet Seat</InputLabel>
         <Select
           labelId="toilet-sheet-label"
           id="toilet-sheet"
@@ -33,7 +33,7 @@ const SuitableLandForm = ({
           <MenuItem value="">Select number</MenuItem>
           {[5, 10, 20, 30, 60, 90, 100, 150, 200, 250].map((num) => (
             <MenuItem key={num} value={num}>
-              {num} Sheets
+              {num} Seat
             </MenuItem>
           ))}
         </Select>

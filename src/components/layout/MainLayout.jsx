@@ -62,23 +62,25 @@ export default function MainLayout() {
             setBufferResults={setBufferResults}
           />
         </div>
-        <AnalysisPanel
-          buffer={buffer}
-          selectedTypes={selectedTypes}
-          analysisData={analysisData}
-          selectedFeature={selectedFeature}
-          setAnalysisLayers={setAnalysisLayers}
-          analysisLayers={analysisLayers}
-          bufferResults={bufferResults}
-          setShowAnalysisOptions={setShowAnalysisOptions}
-          showLandSuitableDropdown={showLandSuitableDropdown}
-          setShowLandSuitableDropdown={setShowLandSuitableDropdown}
-          proximity={proximity}
-          setProximity={setProximity}
-          toiletSheet={toiletSheet}
-          setToiletSheet={setToiletSheet}
-          handleToiletAnalysis={handleToiletAnalysis}
-        />
+        {selectedTypes.includes("toilets_sanitation") && (
+          <AnalysisPanel
+            buffer={buffer}
+            selectedTypes={selectedTypes}
+            analysisData={analysisData}
+            selectedFeature={selectedFeature}
+            setAnalysisLayers={setAnalysisLayers}
+            analysisLayers={analysisLayers}
+            bufferResults={bufferResults}
+            setShowAnalysisOptions={setShowAnalysisOptions}
+            showLandSuitableDropdown={showLandSuitableDropdown}
+            setShowLandSuitableDropdown={setShowLandSuitableDropdown}
+            proximity={proximity}
+            setProximity={setProximity}
+            toiletSheet={toiletSheet}
+            setToiletSheet={setToiletSheet}
+            handleToiletAnalysis={handleToiletAnalysis}
+          />
+        )}
       </div>
     </div>
   );

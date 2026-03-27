@@ -11,4 +11,5 @@ export const API = {
   layerList: `${API_URL}/get_layer_list`,
   aoi: `${API_URL}/aoi_layer`,
   suitableLand: `${API_URL}/suitable_land`,
+  sanitation: `${API_URL}/santitation_scenario`,
 };

@@ -11,11 +11,11 @@ export default function Header() {
         {/* Title */}
         <div className="flex flex-col leading-tight">
           <span className="text-2xl font-semibold tracking-wide">
-            Simhastha Kumbh Mela 2028
+            Ujjain Simhastha Kumbh Mela 2028
           </span>
 
           <span className="text-sm text-orange-200 tracking-wide">
-            Ujjain Planning Dashboard
+            Smart Planning Platform
           </span>
         </div>
       </div>
@@ -24,7 +24,7 @@ export default function Header() {
       <div className="flex items-center gap-5">
         <div className="hidden md:flex items-center gap-4 text-sm text-gray-300">
           <span>
-            Crowd: <span className="text-orange-300 font-semibold">Medium</span>
+            {/* Crowd: <span className="text-orange-300 font-semibold">Medium</span> */}
           </span>
         </div>
 
