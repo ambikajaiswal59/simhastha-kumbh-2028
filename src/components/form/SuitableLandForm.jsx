@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import {
+  TextField,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Paper,
   Button,
+  Checkbox,
 } from "@mui/material";
 
 const SuitableLandForm = ({
@@ -15,6 +17,17 @@ const SuitableLandForm = ({
   setToiletSheet,
   handleToiletAnalysis,
 }) => {
+  const priorityMap = [
+    { id: 1, label: "Road", field: "road" },
+    { id: 2, label: "Parking", field: "parking" },
+    { id: 3, label: "Toilet", field: "toilet" },
+    { id: 4, label: "Water", field: "water" },
+    { id: 5, label: "Medical", field: "medical" },
+    { id: 6, label: "Police", field: "police" },
+    { id: 7, label: "Electric", field: "electric" },
+    { id: 8, label: "River", field: "river" },
+  ];
+
   return (
     <Paper
       elevation={3}
@@ -22,38 +35,50 @@ const SuitableLandForm = ({
     >
       {/* Toilet Sheet Dropdown */}
       <FormControl fullWidth size="small">
-        <InputLabel id="toilet-sheet-label">No. of Toilet Seat</InputLabel>
-        <Select
-          labelId="toilet-sheet-label"
+        <TextField
+          label="No. of Toilet Seat"
           id="toilet-sheet"
+          type="number"
+          size="small"
+          fullWidth
           value={toiletSheet}
-          label="No. of Toilet Sheet"
           onChange={(e) => setToiletSheet(e.target.value)}
-        >
-          <MenuItem value="">Select number</MenuItem>
-          {[5, 10, 20, 30, 60, 90, 100, 150, 200, 250].map((num) => (
-            <MenuItem key={num} value={num}>
-              {num} Seat
-            </MenuItem>
-          ))}
-        </Select>
+          inputProps={{ min: 1 }}
+          // placeholder="Enter number of seats"
+        />
       </FormControl>
 
       {/* Proximity Dropdown */}
       <FormControl fullWidth size="small">
-        <InputLabel id="proximity-label">Proximity with</InputLabel>
+        <InputLabel id="proximity-label" shrink>
+          Proximity with
+        </InputLabel>
         <Select
           labelId="proximity-label"
           id="proximity-with"
-          value={proximity}
+          multiple
           label="Proximity with"
-          onChange={(e) => setProximity(e.target.value)}
+          value={proximity}
+          displayEmpty
+          onChange={(e) => {
+            const value = e.target.value;
+            setProximity(typeof value === "string" ? value.split(",") : value);
+          }}
+          renderValue={(selected) => {
+            if (selected.length === 0) return;
+
+            return priorityMap
+              .filter((p) => selected.includes(p.field))
+              .map((p) => p.label)
+              .join(", ");
+          }}
         >
-          <MenuItem value="">Select Feature</MenuItem>
-          <MenuItem value="temple">Temple</MenuItem>
-          <MenuItem value="hotel">Hotel</MenuItem>
-          <MenuItem value="parking">Parking</MenuItem>
-          <MenuItem value="road">Road</MenuItem>
+          {priorityMap.map((p) => (
+            <MenuItem key={p.id} value={p.field}>
+              <Checkbox checked={proximity.includes(p.field)} size="small" />
+              {p.label}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
       <FormControl fullWidth size="small">

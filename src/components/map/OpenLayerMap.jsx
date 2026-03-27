@@ -15,6 +15,7 @@ import { defaults as defaultControls } from "ol/control";
 import Circle from "ol/geom/Circle";
 import { Stroke, Fill, Style } from "ol/style";
 import * as turf from "@turf/turf";
+import { useMapContext } from "../../context/MapContext";
 
 export default function OpenLayerMap({
   buffer,
@@ -24,8 +25,9 @@ export default function OpenLayerMap({
   analysisLayers,
   setBufferResults,
 }) {
-  const mapRef = useRef(null);
-  const mapObj = useRef(null);
+  const { mapRef, mapObj, suitableLandRef, analysingSitePriority } =
+    useMapContext();
+
   const selectedRef = useRef([]);
   const vectorSourceRef = useRef(null);
   const vectorLayerRef = useRef(null);
@@ -38,7 +40,7 @@ export default function OpenLayerMap({
   const bufferRef = useRef(buffer);
   const [showLegend, setShowLegend] = useState(false);
   const gapLayerRef = useRef(null);
-  const suitableLandRef = useRef(null);
+
   // -----------------------------
   // ICON STYLE
   // -----------------------------
@@ -273,6 +275,7 @@ export default function OpenLayerMap({
 
     const bufferLayer = new VectorLayer({
       source: new VectorSource(),
+      zIndex: 9999, // Set a very high zIndex to ensure this layer is on top
     });
 
     suitableLandRef.current = new VectorLayer({
@@ -754,6 +757,19 @@ export default function OpenLayerMap({
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[999]">
           <div className="bg-white px-6 py-3 rounded-lg shadow-lg text-lg font-semibold">
             Loading Layer...
+          </div>
+        </div>
+      )}
+      {analysingSitePriority && (
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[999]">
+          <div className="bg-white px-6 py-4 rounded-lg shadow-lg text-lg font-semibold flex items-center gap-2">
+            <span>Analysing Site Priority</span>
+
+            <span className="flex">
+              <span className="animate-bounce [animation-delay:0ms]">.</span>
+              <span className="animate-bounce [animation-delay:150ms]">.</span>
+              <span className="animate-bounce [animation-delay:300ms]">.</span>
+            </span>
           </div>
         </div>
       )}

@@ -174,7 +174,7 @@ export default function Sidebar({
                             }));
                           }}
                         />
-                        Land Suitable
+                        Site Priority
                       </label>
                     </div>
                   )}

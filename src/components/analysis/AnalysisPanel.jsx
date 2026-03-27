@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import SuitableLandForm from "../form/SuitableLandForm";
 
 export default function AnalysisPanel({
@@ -40,6 +41,15 @@ export default function AnalysisPanel({
     "upd_time",
   ]);
 
+  useEffect(() => {
+    debugger;
+    if (analysisLayers.suitable_land) {
+      setShowLandSuitableDropdown(true);
+    } else {
+      setShowLandSuitableDropdown(false);
+    }
+  }, [analysisLayers]);
+
   return (
     <div className="w-80 bg-gray-100 p-4 shadow-lg border-l h-screen overflow-y-auto">
       <h2 className="text-lg font-bold mb-4 sticky top-0 bg-gray-100 z-10">
@@ -47,41 +57,6 @@ export default function AnalysisPanel({
       </h2>
       {selectedTypes?.includes("toilets_sanitation") && (
         <div className="mt-4 flex flex-wrap flex-col gap-2">
-          {/* Demand Button */}
-          <button
-            style={{
-              padding: "8px 14px",
-              borderRadius: "8px",
-              border: analysisLayers.demand
-                ? "1px solid #dc2626"
-                : "1px solid #ccc",
-              backgroundColor: analysisLayers.demand ? "#FFA500" : "#ffffff",
-              color: analysisLayers.demand ? "#ffffff" : "#333",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 500,
-              transition: "all 0.2s ease",
-              boxShadow: analysisLayers.demand
-                ? "0 2px 6px rgba(220,38,38,0.4)"
-                : "0 1px 3px rgba(0,0,0,0.1)",
-            }}
-            onMouseEnter={(e) => {
-              if (!analysisLayers.demand) {
-                e.target.style.backgroundColor = "#f3f4f6";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!analysisLayers.demand) {
-                e.target.style.backgroundColor = "#ffffff";
-              }
-            }}
-            onClick={() => {
-              setAnalysisLayers((prev) => ({ ...prev, demand: true }));
-              setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
-            }}
-          >
-            Demand Analysis
-          </button>
           {/* Supply Button */}
           <button
             style={{
@@ -111,15 +86,49 @@ export default function AnalysisPanel({
               }
             }}
             onClick={() => {
-              setAnalysisLayers((prev) => ({ ...prev, supply: true }));
+              setAnalysisLayers((prev) => ({ ...prev, supply: !prev.supply }));
               setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
             }}
           >
             Supply Gap Analysis
           </button>
+          {/* Demand Button */}
+          <button
+            style={{
+              padding: "8px 14px",
+              borderRadius: "8px",
+              border: analysisLayers.demand
+                ? "1px solid #dc2626"
+                : "1px solid #ccc",
+              backgroundColor: analysisLayers.demand ? "#FFA500" : "#ffffff",
+              color: analysisLayers.demand ? "#ffffff" : "#333",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 500,
+              transition: "all 0.2s ease",
+              boxShadow: analysisLayers.demand
+                ? "0 2px 6px rgba(220,38,38,0.4)"
+                : "0 1px 3px rgba(0,0,0,0.1)",
+            }}
+            onMouseEnter={(e) => {
+              if (!analysisLayers.demand) {
+                e.target.style.backgroundColor = "#f3f4f6";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!analysisLayers.demand) {
+                e.target.style.backgroundColor = "#ffffff";
+              }
+            }}
+            onClick={() => {
+              setAnalysisLayers((prev) => ({ ...prev, demand: !prev.demand }));
+              setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
+            }}
+          >
+            Demand Analysis
+          </button>
 
           {/* Land Suitalbe Visualization */}
-          {/* Supply Button */}
           <button
             style={{
               padding: "8px 14px",
@@ -150,15 +159,15 @@ export default function AnalysisPanel({
               }
             }}
             onClick={() => {
-              setAnalysisLayers((prev) => ({
-                ...prev,
-                suitable_land: true,
-              }));
+              // setAnalysisLayers((prev) => ({
+              //   ...prev,
+              //   suitable_land: !prev.suitable_land,
+              // }));
               setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
               setShowLandSuitableDropdown((prev) => !prev);
             }}
           >
-            Land Suitable Analysis
+            Site Priority
           </button>
         </div>
       )}

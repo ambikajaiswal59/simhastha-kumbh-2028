@@ -114,8 +114,8 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
   // IMPORTANT CONDITION FIX
   const hasServiceLegend = selectedTypes?.length > 0;
-  const hasDemandLegend = analysisLayers?.demand;
   const hasSupplyLegend = analysisLayers?.supply;
+  const hasDemandLegend = analysisLayers?.demand;
   const hasSuitableLandLegend = analysisLayers.suitable_land;
 
   if (!hasServiceLegend && !hasDemandLegend && !hasSupplyLegend) return null;
@@ -140,6 +140,22 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
           })}
         </div>
       )}
+      {/* SUPPLY */}
+      {hasSupplyLegend && (
+        <div>
+          <div className="font-semibold mb-2">Supply Analysis</div>
+
+          {supplyLegend.map((item) => (
+            <div key={item.label} className="flex items-center gap-2 mb-1">
+              <div
+                className="w-4 h-4 border"
+                style={{ background: item.color }}
+              />
+              <span>{item.label}</span>({item.value})
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* DEMAND */}
       {hasDemandLegend && (
@@ -158,22 +174,6 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
         </div>
       )}
 
-      {/* SUPPLY */}
-      {hasSupplyLegend && (
-        <div>
-          <div className="font-semibold mb-2">Supply Analysis</div>
-
-          {supplyLegend.map((item) => (
-            <div key={item.label} className="flex items-center gap-2 mb-1">
-              <div
-                className="w-4 h-4 border"
-                style={{ background: item.color }}
-              />
-              <span>{item.label}</span>({item.value})
-            </div>
-          ))}
-        </div>
-      )}
       {/* SUITABLE LAND LEGEND */}
       {hasSuitableLandLegend && (
         <div>
