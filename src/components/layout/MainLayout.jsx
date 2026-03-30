@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Header from "./Header";
-import Sidebar from "./Sidebar";
-import OpenLayerMap from "../map/OpenLayerMap";
-import AnalysisPanel from "../analysis/AnalysisPanel";
 import { useMapContext } from "../../context/MapContext";
-import { Stroke, Fill, Style } from "ol/style";
+import { Style, Icon } from "ol/style";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
+import TenSeat from "../../assets/10seat.png";
+import { lazy, Suspense } from "react";
+
+const OpenLayerMap = lazy(() => import("../map/OpenLayerMap"));
+const AnalysisPanel = lazy(() => import("../analysis/AnalysisPanel"));
+const Sidebar = lazy(() => import("./Sidebar"));
 
 export default function MainLayout() {
   const {
@@ -32,6 +35,8 @@ export default function MainLayout() {
 
   const [toiletSheet, setToiletSheet] = useState("");
   const [proximity, setProximity] = useState([]);
+  const bufferEnabledRef = useRef(false);
+  const [bufferEnabled, setBufferEnabled] = useState(false);
 
   // Land Suaitablity Dropdown state
   const [showLandSuitableDropdown, setShowLandSuitableDropdown] =
@@ -69,7 +74,6 @@ export default function MainLayout() {
   };
 
   const handleToiletAnalysis = () => {
-    debugger;
     setAnalysingSitePriority(true);
     const selectedFeatures = runAnalysis(proximity, toiletSheet);
 
@@ -77,56 +81,76 @@ export default function MainLayout() {
       highlightFeatures(selectedFeatures);
     }, 5000);
   };
+
   const highlightFeatures = (features) => {
     createHighlightLayer();
+
     const source = highlightLayerRef.current.getSource();
     source.clear();
+
     const clonedFeatures = features.map((f) => f.clone());
-    source.addFeatures(clonedFeatures);
-    setAnalysisLayers((prev) => ({
-      ...prev,
-      site_priority: !prev.site_priority,
-    }));
-    setAnalysingSitePriority(false);
+
+    let index = 0;
+
+    const addNextFeature = () => {
+      if (index >= clonedFeatures.length) {
+        setAnalysingSitePriority(false);
+
+        setAnalysisLayers((prev) => ({
+          ...prev,
+          site_priority: !prev.site_priority,
+        }));
+
+        return;
+      }
+
+      const feature = clonedFeatures[index];
+
+      // ✅ Add feature
+      source.addFeature(feature);
+
+      // ✅ Zoom to that feature
+      const geometry = feature.getGeometry();
+      const extent = geometry.getExtent();
+
+      mapObj.current.getView().fit(extent, {
+        duration: 400, // smooth animation
+        padding: [80, 80, 80, 80],
+        maxZoom: 18, // prevent too much zoom
+      });
+
+      index++;
+
+      setTimeout(addNextFeature, 2000);
+    };
+
+    addNextFeature();
   };
 
-  // const highlightFeatures = (features) => {
-  //   createHighlightLayer();
+  const highlightStyle = (feature) => {
+    const geometry = feature.getGeometry();
 
-  //   const source = highlightLayerRef.current.getSource();
-  //   source.clear();
+    let point;
 
-  //   const clonedFeatures = features.map((f) => f.clone());
+    if (geometry.getType() === "Polygon") {
+      point = geometry.getInteriorPoint();
+    } else if (geometry.getType() === "MultiPolygon") {
+      point = geometry.getInteriorPoints().getPoint(0); // first polygon center
+    } else {
+      point = geometry; // fallback (for Point)
+    }
 
-  //   let index = 0;
-
-  //   const addNextFeature = () => {
-  //     if (index >= clonedFeatures.length) {
-  //       setAnalysingSitePriority(false); // ✅ stop loader when done
-  //       return;
-  //     }
-
-  //     source.addFeature(clonedFeatures[index]);
-  //     index++;
-
-  //     setTimeout(addNextFeature, 200); // ⏱ speed (lower = faster)
-  //   };
-
-  //   addNextFeature();
-  // };
-
-  const highlightStyle = new Style({
-    stroke: new Stroke({
-      color: "#8C00FF",
-      width: 2,
-    }),
-    fill: new Fill({
-      color: "rgba(140,0,255,0.3)",
-    }),
-  });
+    return new Style({
+      geometry: point,
+      image: new Icon({
+        src: TenSeat,
+        scale: 0.15,
+        anchor: [0.5, 1],
+      }),
+    });
+  };
 
   const runAnalysis = (selectedPriorities, totalCabinsRequired) => {
-    debugger;
     const layer = suitableLandRef.current;
     const source = layer.getSource();
     const features = source.getFeatures();
@@ -201,33 +225,56 @@ export default function MainLayout() {
     return selectedFeatures;
   };
 
+  const handleBufferEnabled = () => {
+    setBufferEnabled((prev) => {
+      bufferEnabledRef.current = !prev; // keep ref in sync
+      return !prev;
+    });
+  };
+
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* HEADER */}
-      <Header />
+      <div className="h-24 flex-shrink-0">
+        <Header />
+      </div>
 
-      {/* MAIN CONTENT AREA */}
+      {/* MAIN CONTENT */}
       <div className="flex flex-1 overflow-hidden">
-        {/* LEFT SIDEBAR (scrollable only) */}
-        <div className="w-72 h-screen min-h-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
-          <Sidebar
-            setBuffer={setBuffer}
-            setSelectedLayers={setSelectedTypes}
-            analysisLayers={analysisLayers}
-            setAnalysisLayers={setAnalysisLayers}
-            showAnalysisOptions={showAnalysisOptions}
-          />
-          <div className="flex-1">
+        {/* LEFT SIDEBAR */}
+        <Suspense fallback={<div>Loading...</div>}>
+          <div className="w-72 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
+            <Sidebar
+              setBuffer={setBuffer}
+              setSelectedLayers={setSelectedTypes}
+              analysisLayers={analysisLayers}
+              setAnalysisLayers={setAnalysisLayers}
+              showAnalysisOptions={showAnalysisOptions}
+              bufferEnabled={bufferEnabled}
+              handleBufferEnabled={handleBufferEnabled}
+            />
+          </div>
+        </Suspense>
+
+        {/* MAP (NO SCROLL) */}
+        <Suspense fallback={<div>Loading...</div>}>
+          <div className="flex-1 h-full overflow-hidden">
             <OpenLayerMap
               buffer={buffer}
               selectedTypes={selectedTypes}
               updateAnalysis={updateAnalysis}
+              setAnalysisData={setAnalysisData}
               setSelectedFeature={setSelectedFeature}
               analysisLayers={analysisLayers}
               setBufferResults={setBufferResults}
+              bufferEnabledRef={bufferEnabledRef}
             />
           </div>
-          {selectedTypes.includes("toilets_sanitation") && (
+        </Suspense>
+
+        {/* RIGHT PANEL */}
+        <Suspense fallback={<div>Loading...</div>}>
+          <div className="w-[350px] h-full overflow-y-auto bg-[#0f2a44]">
             <AnalysisPanel
               buffer={buffer}
               selectedTypes={selectedTypes}
@@ -245,8 +292,8 @@ export default function MainLayout() {
               setToiletSheet={setToiletSheet}
               handleToiletAnalysis={handleToiletAnalysis}
             />
-          )}
-        </div>
+          </div>
+        </Suspense>
       </div>
     </div>
   );

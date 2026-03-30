@@ -7,6 +7,9 @@ export const MapContextProvider = ({ children }) => {
   const mapObj = useRef(null);
   const suitableLandRef = useRef(null);
   const highlightLayerRef = useRef(null);
+  const bufferLayerRef = useRef(null);
+  const scenerioSanitationRef = useRef(null);
+  const clickMarkerLayerRef = useRef(null);
   const [analysingSitePriority, setAnalysingSitePriority] = useState(false);
 
   return (
@@ -16,7 +19,10 @@ export const MapContextProvider = ({ children }) => {
         mapObj,
         suitableLandRef,
         highlightLayerRef,
+        bufferLayerRef,
+        scenerioSanitationRef,
         analysingSitePriority,
+        clickMarkerLayerRef,
         setAnalysingSitePriority,
       }}
     >

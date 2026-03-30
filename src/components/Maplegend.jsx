@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import TenSeat from "../assets/10seat.png";
 
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
@@ -116,9 +116,9 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
   const highlightLegend = [
     {
-      label: "Top 20%",
-      value: "High Priority",
-      color: "#8C00FF",
+      label: "Toilet Cabin",
+      value: "10 Seat",
+      icon: TenSeat,
     },
   ];
 
@@ -208,9 +208,11 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
           {highlightLegend.map((item) => (
             <div key={item.label} className="flex items-center gap-2 mb-1">
-              <div
-                className="w-4 h-4 border"
-                style={{ background: item.color }}
+              <img
+                width="20px"
+                height="20px"
+                src={item.icon}
+                alt="toilet.png"
               />
               <span>
                 {item.label} ( {item.value} )

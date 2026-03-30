@@ -3,6 +3,9 @@ import "ol/ol.css";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
+import Point from "ol/geom/Point";
+import Feature from "ol/Feature";
+import Overlay from "ol/Overlay";
 import OSM from "ol/source/OSM";
 import { fromLonLat, toLonLat, transform } from "ol/proj";
 import MapLegend from "../Maplegend";
@@ -16,17 +19,29 @@ import Circle from "ol/geom/Circle";
 import { Stroke, Fill, Style } from "ol/style";
 import * as turf from "@turf/turf";
 import { useMapContext } from "../../context/MapContext";
+import { Paper, Typography, Stack, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import LocationIcon from "../../assets/location.svg";
 
 export default function OpenLayerMap({
   buffer,
   selectedTypes = [],
   updateAnalysis,
+  setAnalysisData,
   setSelectedFeature,
   analysisLayers,
   setBufferResults,
+  bufferEnabledRef,
 }) {
-  const { mapRef, mapObj, suitableLandRef, analysingSitePriority } =
-    useMapContext();
+  const {
+    mapRef,
+    mapObj,
+    suitableLandRef,
+    bufferLayerRef,
+    analysingSitePriority,
+    scenerioSanitationRef,
+    clickMarkerLayerRef,
+  } = useMapContext();
 
   const selectedRef = useRef([]);
   const vectorSourceRef = useRef(null);
@@ -35,11 +50,14 @@ export default function OpenLayerMap({
   const demandLayerRef = useRef(null);
   const supplyLayerRef = useRef(null);
   const aoiLayerRef = useRef(null);
-  const bufferLayerRef = useRef(null);
   const [loadingLayer, setLoadingLayer] = useState(false);
   const bufferRef = useRef(buffer);
   const [showLegend, setShowLegend] = useState(false);
   const gapLayerRef = useRef(null);
+
+  const [popupInfo, setPopupInfo] = useState(null);
+  const popupRef = useRef(null);
+  const overlayRef = useRef(null);
 
   // -----------------------------
   // ICON STYLE
@@ -220,23 +238,193 @@ export default function OpenLayerMap({
   // -----------------------------
   // INIT MAP
   // -----------------------------
+  // useEffect(() => {
+  //   //  Base vector layer (your existing)
+  //   vectorSourceRef.current = new VectorSource();
+
+  //   vectorLayerRef.current = new VectorLayer({
+  //     source: vectorSourceRef.current,
+  //   });
+
+  //   //  CREATE MAP
+  //   mapObj.current = new Map({
+  //     target: mapRef.current,
+  //     layers: [
+  //       new TileLayer({
+  //         source: new OSM(),
+  //       }),
+  //       vectorLayerRef.current,
+  //     ],
+  //     view: new View({
+  //       center: fromLonLat([75.7683, 23.1824]),
+  //       zoom: 15,
+  //     }),
+  //     controls: defaultControls({
+  //       zoom: true,
+  //       rotate: false,
+  //       attribution: false,
+  //     }),
+  //   });
+
+  //   // ✅ Add overlay HERE (safe)
+  //   overlayRef.current = new Overlay({
+  //     element: popupRef.current,
+  //     positioning: "bottom-center",
+  //     stopEvent: true,
+  //     offset: [0, -10],
+  //   });
+
+  //   mapObj.current.addOverlay(overlayRef.current);
+
+  //   //  ADD DEMAND + SUPPLY LAYERS HERE (IMPORTANT)
+
+  //   demandLayerRef.current = new VectorLayer({
+  //     source: new VectorSource(),
+  //     style: demandLayerStyle,
+  //     visible: false,
+  //   });
+  //   demandLayerRef.current.set("name", "Demand Layer");
+
+  //   supplyLayerRef.current = new VectorLayer({
+  //     source: new VectorSource(),
+  //     style: supplyLayerStyle,
+  //     visible: false,
+  //   });
+  //   supplyLayerRef.current.set("name", "Supply Layer");
+  //   //  AOI Layer
+  //   aoiLayerRef.current = new VectorLayer({
+  //     source: new VectorSource(),
+  //     style: aoiStyle,
+  //   });
+  //   aoiLayerRef.current.set("name", "AOI Layer");
+
+  //   gapLayerRef.current = new VectorLayer({
+  //     source: new VectorSource(),
+  //     style: gapLayerStyle,
+  //     visible: false,
+  //   });
+  //   gapLayerRef.current.set("name", "Gap Layer");
+
+  //   bufferLayerRef.current = new VectorLayer({
+  //     source: new VectorSource(),
+  //     zIndex: 9999, // Set a very high zIndex to ensure this layer is on top
+  //   });
+  //   bufferLayerRef.current.set("name", "Buffer Layer");
+
+  //   suitableLandRef.current = new VectorLayer({
+  //     source: new VectorSource(),
+  //     style: suitableLandLayerStyle,
+  //     visible: false,
+  //   });
+  //   suitableLandRef.current.set("name", "SuitableLand Layer");
+
+  //   scenerioSanitationRef.current = new VectorLayer({
+  //     source: new VectorSource(),
+  //     style: invisibleStyle,
+  //     visible: true,
+  //     title: "ScenerioSanitation",
+  //   });
+  //   scenerioSanitationRef.current.set("name", "ScenerioSanitation Layer");
+
+  //   if (!clickMarkerLayerRef.current) {
+  //     clickMarkerLayerRef.current = new VectorLayer({
+  //       source: new VectorSource(),
+  //       zIndex: 99999,
+  //     });
+
+  //     mapObj.current.addLayer(clickMarkerLayerRef.current);
+  //   }
+
+  //   mapObj.current.addLayer(bufferLayerRef.current);
+
+  //   //  ORDER MATTERS (VERY IMPORTANT)
+  //   mapObj.current.addLayer(demandLayerRef.current); // bottom
+  //   mapObj.current.addLayer(supplyLayerRef.current); // top (swipe layer)
+  //   mapObj.current.addLayer(aoiLayerRef.current);
+  //   mapObj.current.addLayer(gapLayerRef.current);
+  //   mapObj.current.addLayer(suitableLandRef.current);
+  //   mapObj.current.addLayer(scenerioSanitationRef.current);
+  //   loadAOI();
+  //   suitableLand();
+  //   sanitationScenerio();
+  //   //  CLICK EVENT
+  //   mapObj.current.on("click", (evt) => {
+  //     const coord = toLonLat(evt.coordinate);
+  //     const lat = coord[1];
+  //     const lon = coord[0];
+
+  //     const clickedLayers = [];
+  //     let found = false;
+
+  //     mapObj.current.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
+  //       const properties = { ...feature.getProperties() };
+
+  //       const layerName = layer.get("name") || "Unnamed Layer";
+
+  //       delete properties.geometry;
+
+  //       clickedLayers.push({
+  //         layer: layerName,
+  //         properties,
+  //       });
+
+  //       setSelectedFeature(properties);
+  //       debugger;
+  //       if (layer.get("name") === "ScenerioSanitation Layer") {
+  //         setPopupInfo(properties);
+
+  //         // show popup
+  //         overlayRef.current.setPosition(evt.coordinate);
+
+  //         // 🔥 ADD MARKER HERE
+  //         const source = clickMarkerLayerRef.current.getSource();
+
+  //         source.clear(); // optional: keep only one marker
+
+  //         const marker = new Feature({
+  //           geometry: new Point(evt.coordinate),
+  //         });
+
+  //         marker.setStyle(markerStyle);
+  //         source.addFeature(marker);
+
+  //         found = true;
+  //       }
+  //     });
+  //     // Close popup if clicked elsewhere
+  //     if (!found) {
+  //       overlayRef.current.setPosition(undefined);
+  //       clickMarkerLayerRef.current.getSource().clear();
+  //     }
+
+  //     if (bufferEnabled.current === true) {
+  //       selectedRef.current.forEach((type) => {
+  //         fetchAnalysis(type, lat, lon);
+  //       });
+  //       if (bufferRef.current > 0) {
+  //         runBufferAnalysis(evt.coordinate);
+  //       }
+  //     }
+  //   });
+
+  //   return () => mapObj.current.setTarget(null);
+  // }, []);
   useEffect(() => {
-    //  Base vector layer (your existing)
+    if (mapObj.current) return; // ✅ prevent re-init
+
     vectorSourceRef.current = new VectorSource();
 
     vectorLayerRef.current = new VectorLayer({
       source: vectorSourceRef.current,
     });
 
-    //  CREATE MAP
+    const baseLayer = new TileLayer({
+      source: new OSM(),
+    });
+
     mapObj.current = new Map({
       target: mapRef.current,
-      layers: [
-        new TileLayer({
-          source: new OSM(),
-        }),
-        vectorLayerRef.current,
-      ],
+      layers: [baseLayer, vectorLayerRef.current],
       view: new View({
         center: fromLonLat([75.7683, 23.1824]),
         zoom: 15,
@@ -248,65 +436,149 @@ export default function OpenLayerMap({
       }),
     });
 
-    //  ADD DEMAND + SUPPLY LAYERS HERE (IMPORTANT)
-
-    demandLayerRef.current = new VectorLayer({
-      source: new VectorSource(),
-      style: demandLayerStyle,
-      visible: false,
+    overlayRef.current = new Overlay({
+      element: popupRef.current,
+      positioning: "center-left", // 👈 anchor popup from left side
+      stopEvent: true,
+      offset: [0, 0], // 👉 push it to right
     });
 
-    supplyLayerRef.current = new VectorLayer({
+    mapObj.current.addOverlay(overlayRef.current);
+
+    demandLayerRef.current = createLayer(
+      demandLayerStyle,
+      false,
+      "Demand Layer",
+    );
+    supplyLayerRef.current = createLayer(
+      supplyLayerStyle,
+      false,
+      "Supply Layer",
+    );
+    aoiLayerRef.current = createLayer(aoiStyle, true, "AOI Layer");
+    gapLayerRef.current = createLayer(gapLayerStyle, false, "Gap Layer");
+    suitableLandRef.current = createLayer(
+      suitableLandLayerStyle,
+      false,
+      "SuitableLand Layer",
+    );
+
+    scenerioSanitationRef.current = new VectorLayer({
       source: new VectorSource(),
-      style: supplyLayerStyle,
-      visible: false,
+      style: invisibleStyle,
+      visible: true,
     });
-    //  AOI Layer
-    aoiLayerRef.current = new VectorLayer({
+    scenerioSanitationRef.current.set("name", "ScenerioSanitation Layer");
+
+    bufferLayerRef.current = new VectorLayer({
       source: new VectorSource(),
-      style: aoiStyle,
+      zIndex: 9999,
+    });
+    bufferLayerRef.current.set("name", "Buffer Layer");
+
+    // -----------------------------
+    // CLICK MARKER LAYER
+    // -----------------------------
+    clickMarkerLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      zIndex: 99999,
     });
 
-    gapLayerRef.current = new VectorLayer({
-      source: new VectorSource(),
-      style: gapLayerStyle,
-      visible: false,
-    });
-
-    const bufferLayer = new VectorLayer({
-      source: new VectorSource(),
-      zIndex: 9999, // Set a very high zIndex to ensure this layer is on top
-    });
-
-    suitableLandRef.current = new VectorLayer({
-      source: new VectorSource(),
-      style: suitableLandLayerStyle,
-      visible: false,
-    });
-
-    mapObj.current.addLayer(bufferLayer);
-
-    bufferLayerRef.current = bufferLayer;
-    //  ORDER MATTERS (VERY IMPORTANT)
-    mapObj.current.addLayer(demandLayerRef.current); // bottom
-    mapObj.current.addLayer(supplyLayerRef.current); // top (swipe layer)
+    // -----------------------------
+    // ADD LAYERS (ORDER MATTERS)
+    // -----------------------------
+    mapObj.current.addLayer(bufferLayerRef.current);
+    mapObj.current.addLayer(demandLayerRef.current);
+    mapObj.current.addLayer(supplyLayerRef.current);
     mapObj.current.addLayer(aoiLayerRef.current);
     mapObj.current.addLayer(gapLayerRef.current);
     mapObj.current.addLayer(suitableLandRef.current);
+    mapObj.current.addLayer(scenerioSanitationRef.current);
+    mapObj.current.addLayer(clickMarkerLayerRef.current);
+
+    // -----------------------------
+    // INITIAL LOAD
+    // -----------------------------
     loadAOI();
     suitableLand();
-    //  CLICK EVENT
-    mapObj.current.on("click", (evt) => {
-      const coord = toLonLat(evt.coordinate);
-      const lat = coord[1];
-      const lon = coord[0];
+    sanitationScenerio();
 
-      mapObj.current.forEachFeatureAtPixel(evt.pixel, (feature) => {
-        const properties = { ...feature.getProperties() };
-        delete properties.geometry;
-        setSelectedFeature(properties);
-      });
+    mapObj.current.on("click", handleMapClick);
 
+    // -----------------------------
+    // CLEANUP
+    // -----------------------------
+    return () => {
+      mapObj.current.un("click", handleMapClick);
+      mapObj.current.setTarget(null);
+      mapObj.current = null;
+    };
+  }, []);
+
+  // -----------------------------
+  // LAYER FACTORY 🔥
+  // -----------------------------
+  const createLayer = (style, visible = false, name) => {
+    const layer = new VectorLayer({
+      source: new VectorSource(),
+      style,
+      visible,
+    });
+    layer.set("name", name);
+    return layer;
+  };
+
+  // -----------------------------
+  // CLICK HANDLER 🔥 (OPTIMIZED)
+  // -----------------------------
+  const handleMapClick = (evt) => {
+    debugger;
+    const [lon, lat] = toLonLat(evt.coordinate);
+
+    let found = false;
+
+    mapObj.current.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
+      const layerName = layer?.get("name");
+
+      const properties = { ...feature.getProperties() };
+      delete properties.geometry;
+
+      setSelectedFeature(properties);
+
+      if (
+        bufferEnabledRef.current === false &&
+        layerName === "ScenerioSanitation Layer"
+      ) {
+        bufferLayerRef.current.getSource().clear();
+        setAnalysisData({});
+        setPopupInfo(properties);
+        overlayRef.current.setPosition(evt.coordinate);
+
+        // 🔥 Marker
+        const source = clickMarkerLayerRef.current.getSource();
+        source.clear();
+
+        const marker = new Feature({
+          geometry: new Point(evt.coordinate),
+        });
+
+        marker.setStyle(markerStyle);
+        source.addFeature(marker);
+
+        found = true;
+      }
+    });
+
+    // Close popup if nothing clicked
+    if (!found) {
+      overlayRef.current.setPosition(undefined);
+      clickMarkerLayerRef.current.getSource().clear();
+    }
+
+    // -----------------------------
+    // BUFFER ANALYSIS
+    // -----------------------------
+    if (bufferEnabledRef.current) {
       selectedRef.current.forEach((type) => {
         fetchAnalysis(type, lat, lon);
       });
@@ -314,10 +586,10 @@ export default function OpenLayerMap({
       if (bufferRef.current > 0) {
         runBufferAnalysis(evt.coordinate);
       }
-    });
+    } else {
+    }
+  };
 
-    return () => mapObj.current.setTarget(null);
-  }, []);
   // -----------------------------
   // SWIPE CONTROL
   // -----------------------------
@@ -438,7 +710,7 @@ export default function OpenLayerMap({
   // -----------------------------
   useEffect(() => {
     if (!mapObj.current) return;
-
+    debugger;
     Object.values(layerRef.current).forEach((l) =>
       mapObj.current.removeLayer(l),
     );
@@ -651,7 +923,6 @@ export default function OpenLayerMap({
   // -----------------------------
   const suitableLand = async () => {
     try {
-      debugger;
       const res = await fetch(API.suitableLand);
       const json = await res.json();
 
@@ -695,6 +966,48 @@ export default function OpenLayerMap({
   };
 
   // -----------------------------
+  // SCENERION SANITATION API
+  // -----------------------------
+  const sanitationScenerio = async () => {
+    try {
+      const res = await fetch(API.sanitation);
+      const json = await res.json();
+
+      const features = new GeoJSON().readFeatures(json.data, {
+        featureProjection: "EPSG:3857",
+      });
+
+      scenerioSanitationRef.current.getSource().clear();
+      scenerioSanitationRef.current.getSource().addFeatures(features);
+
+      const extent = scenerioSanitationRef.current.getSource().getExtent();
+      mapObj.current.getView().fit(extent, {
+        padding: [40, 40, 40, 40],
+        duration: 800,
+      });
+    } catch (err) {
+      console.error("AOI error:", err);
+    }
+  };
+
+  const invisibleStyle = new Style({
+    stroke: new Stroke({
+      color: "rgba(0,0,0,0)", // ❌ invisible border
+      width: 0,
+    }),
+    fill: new Fill({
+      color: "rgba(0,0,0,0)", // ❌ invisible fill
+    }),
+  });
+  const markerStyle = new Style({
+    image: new Icon({
+      src: LocationIcon,
+      scale: 0.25, // small icon
+      anchor: [0.5, 1],
+    }),
+  });
+
+  // -----------------------------
   // UI
   // -----------------------------
   return (
@@ -710,6 +1023,80 @@ export default function OpenLayerMap({
         >
           📊 Legend
         </button>
+      </div>
+
+      <div
+        ref={popupRef}
+        style={{
+          position: "absolute",
+          borderRadius: "2px",
+          minWidth: "250px",
+        }}
+      >
+        {popupInfo && (
+          <Paper
+            elevation={6}
+            sx={{
+              width: 280,
+              maxWidth: "90vw",
+              p: 2,
+              borderRadius: 2,
+              background: "#133b5c",
+              color: "white",
+            }}
+          >
+            {/* Header */}
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              mb={1}
+              borderBottom={1}
+            >
+              <Typography variant="subtitle1" fontWeight="bold">
+                Scenerio Sanitation
+              </Typography>
+
+              <IconButton
+                size="small"
+                onClick={() => {
+                  overlayRef.current.setPosition(undefined);
+                  clickMarkerLayerRef.current.getSource().clear();
+                }}
+                sx={{
+                  color: "white",
+                  margin: "2px",
+                }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+
+            {/* Content */}
+            <Stack spacing={0.8}>
+              {[
+                // { label: "Priority", value: popupInfo.priority },
+                { label: "Road", value: popupInfo.d_road },
+                { label: "Parking", value: popupInfo.d_parking },
+                { label: "Toilet", value: popupInfo.d_toilet },
+                { label: "Water", value: popupInfo.d_water },
+                { label: "Medical", value: popupInfo.d_medical },
+                { label: "Police", value: popupInfo.d_police },
+                { label: "Electric", value: popupInfo.d_electric },
+                { label: "River", value: popupInfo.d_river },
+              ].map((item, i) => (
+                <Stack key={i} direction="row" justifyContent="space-between">
+                  <Typography variant="body2" fontWeight={500}>
+                    {item.label}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {item.value} m
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Paper>
+        )}
       </div>
 
       {/* LEGEND CARD */}
@@ -761,16 +1148,13 @@ export default function OpenLayerMap({
         </div>
       )}
       {analysingSitePriority && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[999]">
-          <div className="bg-white px-6 py-4 rounded-lg shadow-lg text-lg font-semibold flex items-center gap-2">
-            <span>Analysing Site Priority</span>
-
-            <span className="flex">
-              <span className="animate-bounce [animation-delay:0ms]">.</span>
-              <span className="animate-bounce [animation-delay:150ms]">.</span>
-              <span className="animate-bounce [animation-delay:300ms]">.</span>
-            </span>
+        <div className="absolute inset-0 bg-black/40 z-[999]">
+          <div className="w-full h-full relative">
+            <div className="absolute right-[10px] bottom-[10px]">
+              <div className="w-10 h-10 border-4 right-0 bottom-0 border-gray-300 border-t-orange-500 rounded-full animate-spin"></div>
+            </div>
           </div>
+          {/* Spinner */}
         </div>
       )}
     </div>

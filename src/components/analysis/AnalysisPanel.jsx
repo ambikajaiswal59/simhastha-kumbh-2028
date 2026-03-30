@@ -42,7 +42,6 @@ export default function AnalysisPanel({
   ]);
 
   useEffect(() => {
-    debugger;
     if (analysisLayers.suitable_land) {
       setShowLandSuitableDropdown(true);
     } else {
@@ -51,127 +50,58 @@ export default function AnalysisPanel({
   }, [analysisLayers]);
 
   return (
-    <div className="w-80 bg-gray-100 p-4 shadow-lg border-l h-screen overflow-y-auto">
-      <h2 className="text-lg font-bold mb-4 sticky top-0 bg-gray-100 z-10">
+    <div className="w-80 h-full bg-gradient-to-b from-[#0f2a44] to-[#133b5c] p-4 border-l overflow-y-auto">
+      {/* HEADER */}
+      <h2 className="text-lg font-bold mb-4 text-white sticky top-0 bg-[#133b5c] py-2 z-10">
         Analysis Results
       </h2>
-      {selectedTypes?.includes("toilets_sanitation") && (
-        <div className="mt-4 flex flex-wrap flex-col gap-2">
-          {/* Supply Button */}
-          <button
-            style={{
-              padding: "8px 14px",
-              borderRadius: "8px",
-              border: analysisLayers.supply
-                ? "1px solid #dc2626"
-                : "1px solid #ccc",
-              backgroundColor: analysisLayers.supply ? "#F08000" : "#ffffff",
-              color: analysisLayers.supply ? "#ffffff" : "#333",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 500,
-              transition: "all 0.2s ease",
-              boxShadow: analysisLayers.supply
-                ? "0 2px 6px rgba(220,38,38,0.4)"
-                : "0 1px 3px rgba(0,0,0,0.1)",
-            }}
-            onMouseEnter={(e) => {
-              if (!analysisLayers.supply) {
-                e.target.style.backgroundColor = "#f3f4f6";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!analysisLayers.supply) {
-                e.target.style.backgroundColor = "#ffffff";
-              }
-            }}
-            onClick={() => {
-              setAnalysisLayers((prev) => ({ ...prev, supply: !prev.supply }));
-              setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
-            }}
-          >
-            Supply Gap Analysis
-          </button>
-          {/* Demand Button */}
-          <button
-            style={{
-              padding: "8px 14px",
-              borderRadius: "8px",
-              border: analysisLayers.demand
-                ? "1px solid #dc2626"
-                : "1px solid #ccc",
-              backgroundColor: analysisLayers.demand ? "#FFA500" : "#ffffff",
-              color: analysisLayers.demand ? "#ffffff" : "#333",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 500,
-              transition: "all 0.2s ease",
-              boxShadow: analysisLayers.demand
-                ? "0 2px 6px rgba(220,38,38,0.4)"
-                : "0 1px 3px rgba(0,0,0,0.1)",
-            }}
-            onMouseEnter={(e) => {
-              if (!analysisLayers.demand) {
-                e.target.style.backgroundColor = "#f3f4f6";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!analysisLayers.demand) {
-                e.target.style.backgroundColor = "#ffffff";
-              }
-            }}
-            onClick={() => {
-              setAnalysisLayers((prev) => ({ ...prev, demand: !prev.demand }));
-              setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
-            }}
-          >
-            Demand Analysis
-          </button>
 
-          {/* Land Suitalbe Visualization */}
+      {selectedTypes?.includes("toilets_sanitation") && (
+        <div className="flex flex-col gap-2 mb-4">
+          {/* Reusable Button */}
+          {[
+            { key: "supply", label: "Supply Gap Analysis" },
+            { key: "demand", label: "Demand Analysis" },
+          ].map((btn) => (
+            <button
+              key={btn.key}
+              onClick={() => {
+                setAnalysisLayers((prev) => ({
+                  ...prev,
+                  [btn.key]: !prev[btn.key],
+                }));
+                setShowAnalysisOptions(true);
+              }}
+              className={`px-3 py-2 text-sm rounded-md border border-white transition-all duration-200
+            ${
+              analysisLayers[btn.key]
+                ? "bg-[#0f2a44] text-white"
+                : "bg-[#133b5c] text-gray-200 hover:bg-[#0f2a44]"
+            }`}
+            >
+              {btn.label}
+            </button>
+          ))}
+
+          {/* Site Priority */}
           <button
-            style={{
-              padding: "8px 14px",
-              borderRadius: "8px",
-              border: analysisLayers.suitable_land
-                ? "1px solid #dc2626"
-                : "1px solid #ccc",
-              backgroundColor: analysisLayers.suitable_land
-                ? "#F08000"
-                : "#ffffff",
-              color: analysisLayers.suitable_land ? "#ffffff" : "#333",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 500,
-              transition: "all 0.2s ease",
-              boxShadow: analysisLayers.suitable_land
-                ? "0 2px 6px rgba(220,38,38,0.4)"
-                : "0 1px 3px rgba(0,0,0,0.1)",
-            }}
-            onMouseEnter={(e) => {
-              if (!analysisLayers.suitable_land) {
-                e.target.style.backgroundColor = "#f3f4f6";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!analysisLayers.suitable_land) {
-                e.target.style.backgroundColor = "#ffffff";
-              }
-            }}
             onClick={() => {
-              // setAnalysisLayers((prev) => ({
-              //   ...prev,
-              //   suitable_land: !prev.suitable_land,
-              // }));
-              setShowAnalysisOptions(true); // ✅ SHOW LEFT OPTIONS
+              setShowAnalysisOptions(true);
               setShowLandSuitableDropdown((prev) => !prev);
             }}
+            className={`px-3 py-2 text-sm rounded-md border border-white transition-all duration-200
+          ${
+            analysisLayers.suitable_land
+              ? "bg-[#0f2a44] text-white"
+              : "bg-[#133b5c] text-gray-200 hover:bg-[#0f2a44]"
+          }`}
           >
             Site Priority
           </button>
         </div>
       )}
 
+      {/* FORM */}
       <div className="space-y-4">
         {showLandSuitableDropdown && (
           <SuitableLandForm
@@ -183,36 +113,35 @@ export default function AnalysisPanel({
           />
         )}
 
+        {/* ANALYSIS CARDS */}
         {selectedTypes.map((type) => {
           const item = analysisData[type];
-
           if (!item) return null;
 
           return (
-            <div key={type} className="bg-white p-3 rounded shadow">
-              <div className="flex justify-between">
-                <span className="font-semibold">
+            <div key={type} className="bg-white p-3 rounded shadow-sm">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-sm">
                   {TYPE_LABELS[type] || type}
                 </span>
 
-                <span className="font-bold text-blue-600">
+                <span className="font-bold text-blue-600 text-sm">
                   {item.point_count}
                 </span>
               </div>
 
-              {/* <p className="text-sm text-gray-500 mt-1">Features Found</p> */}
-              {/* 🔥 Dynamic Feature Data */}
+              {/* FEATURE DATA */}
               {selectedFeature && (
-                <div className="mt-3 border-t pt-2">
+                <div className="mt-3 border-t pt-2 space-y-1">
                   {Object.entries(selectedFeature)
-                    .filter(([key]) => !IGNORE_KEYS.has(key)) // 🚀 filter here
+                    .filter(([key]) => !IGNORE_KEYS.has(key))
                     .map(([key, value]) => (
                       <div
                         key={key}
                         className="flex justify-between text-xs text-gray-700"
                       >
                         <span className="capitalize">
-                          {key.charAt(0).toUpperCase() + key.slice(1)}
+                          {key.replace(/_/g, " ")}
                         </span>
                         <span className="font-medium">{String(value)}</span>
                       </div>
@@ -220,18 +149,13 @@ export default function AnalysisPanel({
                 </div>
               )}
 
-              <p className="text-sm mt-2">
+              <p className="text-xs mt-2 text-gray-600">
                 Avg Distance: <b>{Math.round(item.avg_distance_meters)} m</b>
               </p>
             </div>
           );
         })}
       </div>
-
-      {/* Buffer Info */}
-      {/* <div className="mt-5 bg-white p-3 rounded shadow text-sm">
-        Buffer Radius: <b>{buffer} km</b>
-      </div> */}
     </div>
   );
 }
