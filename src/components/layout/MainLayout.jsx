@@ -23,6 +23,7 @@ export default function MainLayout() {
     supply: false,
     gap: false,
     suitable_land: false,
+    site_priority: false,
   });
   const [analysisData, setAnalysisData] = useState({});
 
@@ -78,14 +79,14 @@ export default function MainLayout() {
   };
   const highlightFeatures = (features) => {
     createHighlightLayer();
-
     const source = highlightLayerRef.current.getSource();
-
     source.clear();
-
     const clonedFeatures = features.map((f) => f.clone());
-
     source.addFeatures(clonedFeatures);
+    setAnalysisLayers((prev) => ({
+      ...prev,
+      site_priority: !prev.site_priority,
+    }));
     setAnalysingSitePriority(false);
   };
 

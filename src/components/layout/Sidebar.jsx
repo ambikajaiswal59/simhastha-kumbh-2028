@@ -82,7 +82,7 @@ export default function Sidebar({
       //  RESET ANALYSIS if toilets removed
       if (layer.table_name === "toilets_sanitation") {
         setAnalysisLayers({
-          demand: true,
+          demand: false,
           supply: false,
         });
       }
@@ -93,6 +93,8 @@ export default function Sidebar({
     setSelected(updated);
     setSelectedLayers(updated.map((l) => l.table_name));
   };
+
+  const hasSitePriority = analysisLayers.site_priority;
 
   return (
     <div className="w-72 bg-gradient-to-b from-[#0f2a44] to-[#133b5c] text-white p-5 shadow-xl border-r border-orange-500/20">
@@ -162,7 +164,7 @@ export default function Sidebar({
                         Demand
                       </label>
 
-                      <label className="flex items-center gap-1 cursor-pointer">
+                      {/* <label className="flex items-center gap-1 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={analysisLayers.suitable_land}
@@ -174,8 +176,24 @@ export default function Sidebar({
                             }));
                           }}
                         />
-                        Site Priority
-                      </label>
+                        Suitable Land
+                      </label> */}
+                      {hasSitePriority && (
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={analysisLayers.site_priority}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setAnalysisLayers((prev) => ({
+                                ...prev,
+                                site_priority: checked,
+                              }));
+                            }}
+                          />
+                          Site Priority
+                        </label>
+                      )}
                     </div>
                   )}
               </div>

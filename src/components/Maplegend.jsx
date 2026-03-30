@@ -1,7 +1,9 @@
+import { useEffect } from "react";
+
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
     toilets_sanitation: {
-      label: "Toilet Sanitation",
+      label: "Toilet",
       icon: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
     },
     police_station: {
@@ -13,7 +15,7 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
       icon: "https://cdn-icons-png.flaticon.com/512/854/854878.png",
     },
     road_network3: {
-      label: "Road Network",
+      label: "Road",
       icon: "https://cdn-icons-png.flaticon.com/512/684/684809.png",
     },
 
@@ -59,27 +61,27 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
   const supplyLegend = [
     {
       label: "Critical",
-      color: "#562F00", //"rgba(255,0,0,0.55)",
+      color: "#0D8202", //"rgba(255,0,0,0.55)",
       value: ">= 20",
     },
     {
       label: "Moderate",
-      color: "#A03A13", //"rgba(255,165,0,0.45)",
+      color: "#10B101", //"rgba(255,165,0,0.45)",
       value: "10 - 19.9",
     },
     {
       label: "Low",
-      color: "#8A7650", //"rgba(255,255,0,0.45)",
+      color: "#12D600", //"rgba(255,255,0,0.45)",
       value: "5 - 9.9",
     },
     {
       label: "Adequate",
-      color: "#DBCEA5", //"rgba(0,180,0,0.45)"
+      color: "#17FD02", //"rgba(0,180,0,0.45)"
       value: "0 - 4.9",
     },
     {
       label: "Oversupply",
-      color: "#ECE7D1", //"rgba(0,120,255,0.45)",
+      color: "#A3FA9B", //"rgba(0,120,255,0.45)",
       value: "< 0",
     },
   ];
@@ -112,11 +114,20 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
     },
   ];
 
+  const highlightLegend = [
+    {
+      label: "Top 20%",
+      value: "High Priority",
+      color: "#8C00FF",
+    },
+  ];
+
   // IMPORTANT CONDITION FIX
   const hasServiceLegend = selectedTypes?.length > 0;
   const hasSupplyLegend = analysisLayers?.supply;
   const hasDemandLegend = analysisLayers?.demand;
   const hasSuitableLandLegend = analysisLayers.suitable_land;
+  const hasSitePriority = analysisLayers.site_priority;
 
   if (!hasServiceLegend && !hasDemandLegend && !hasSupplyLegend) return null;
 
@@ -186,6 +197,24 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
                 style={{ background: item.color }}
               />
               <span>{item.label}</span>({item.value})
+            </div>
+          ))}
+        </div>
+      )}
+      {/* SITE PRIORITY LEGEND */}
+      {hasSitePriority && (
+        <div>
+          <div className="font-semibold mb-2">Site Priority</div>
+
+          {highlightLegend.map((item) => (
+            <div key={item.label} className="flex items-center gap-2 mb-1">
+              <div
+                className="w-4 h-4 border"
+                style={{ background: item.color }}
+              />
+              <span>
+                {item.label} ( {item.value} )
+              </span>
             </div>
           ))}
         </div>

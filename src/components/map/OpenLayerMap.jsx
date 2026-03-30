@@ -108,14 +108,14 @@ export default function OpenLayerMap({
     let color = "rgba(200,200,200,0.4)";
 
     if (gap === "Adequate")
-      color = "#DBCEA5"; //"rgba(0,180,0,0.45)";
+      color = "#A3FA9B"; //"rgba(0,180,0,0.45)";
     else if (gap === "Oversupply")
-      color = "#ECE7D1"; //"rgba(0,120,255,0.45)";
+      color = "#17FD02"; //"rgba(0,120,255,0.45)";
     else if (gap === "Low")
-      color = "#8A7650"; //"rgba(255,255,0,0.45)";
+      color = "#12D600"; //"rgba(255,255,0,0.45)";
     else if (gap === "Moderate")
-      color = "#A03A13"; //"rgba(255,165,0,0.45)";
-    else if (gap === "Critical") color = "#562F00"; //"rgba(255,0,0,0.55)";
+      color = "#10B101"; //"rgba(255,165,0,0.45)";
+    else if (gap === "Critical") color = "#0D8202"; //"rgba(255,0,0,0.55)";
 
     return new Style({
       fill: new Fill({ color }),
@@ -731,7 +731,7 @@ export default function OpenLayerMap({
         >
           {/* Header */}
           <div className="text-sm font-semibold text-gray-700 text-center mb-2">
-            Analysis Compare
+            Analysis
           </div>
 
           {/* Labels */}
