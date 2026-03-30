@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import OpenLayerMap from "../map/OpenLayerMap";
@@ -202,46 +202,51 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="h-screen flex flex-col ">
+    <div className="h-screen flex flex-col overflow-hidden">
+      {/* HEADER */}
       <Header />
 
-      <div className="flex flex-1">
-        <Sidebar
-          setBuffer={setBuffer}
-          setSelectedLayers={setSelectedTypes}
-          analysisLayers={analysisLayers}
-          setAnalysisLayers={setAnalysisLayers}
-          showAnalysisOptions={showAnalysisOptions}
-        />
-        <div className="flex-1">
-          <OpenLayerMap
-            buffer={buffer}
-            selectedTypes={selectedTypes}
-            updateAnalysis={updateAnalysis}
-            setSelectedFeature={setSelectedFeature}
+      {/* MAIN CONTENT AREA */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* LEFT SIDEBAR (scrollable only) */}
+        <div className="w-72 h-screen min-h-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
+          <Sidebar
+            setBuffer={setBuffer}
+            setSelectedLayers={setSelectedTypes}
             analysisLayers={analysisLayers}
-            setBufferResults={setBufferResults}
-          />
-        </div>
-        {selectedTypes.includes("toilets_sanitation") && (
-          <AnalysisPanel
-            buffer={buffer}
-            selectedTypes={selectedTypes}
-            analysisData={analysisData}
-            selectedFeature={selectedFeature}
             setAnalysisLayers={setAnalysisLayers}
-            analysisLayers={analysisLayers}
-            bufferResults={bufferResults}
-            setShowAnalysisOptions={setShowAnalysisOptions}
-            showLandSuitableDropdown={showLandSuitableDropdown}
-            setShowLandSuitableDropdown={setShowLandSuitableDropdown}
-            proximity={proximity}
-            setProximity={setProximity}
-            toiletSheet={toiletSheet}
-            setToiletSheet={setToiletSheet}
-            handleToiletAnalysis={handleToiletAnalysis}
+            showAnalysisOptions={showAnalysisOptions}
           />
-        )}
+          <div className="flex-1">
+            <OpenLayerMap
+              buffer={buffer}
+              selectedTypes={selectedTypes}
+              updateAnalysis={updateAnalysis}
+              setSelectedFeature={setSelectedFeature}
+              analysisLayers={analysisLayers}
+              setBufferResults={setBufferResults}
+            />
+          </div>
+          {selectedTypes.includes("toilets_sanitation") && (
+            <AnalysisPanel
+              buffer={buffer}
+              selectedTypes={selectedTypes}
+              analysisData={analysisData}
+              selectedFeature={selectedFeature}
+              setAnalysisLayers={setAnalysisLayers}
+              analysisLayers={analysisLayers}
+              bufferResults={bufferResults}
+              setShowAnalysisOptions={setShowAnalysisOptions}
+              showLandSuitableDropdown={showLandSuitableDropdown}
+              setShowLandSuitableDropdown={setShowLandSuitableDropdown}
+              proximity={proximity}
+              setProximity={setProximity}
+              toiletSheet={toiletSheet}
+              setToiletSheet={setToiletSheet}
+              handleToiletAnalysis={handleToiletAnalysis}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

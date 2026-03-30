@@ -1,17 +1,35 @@
 import { useState, useEffect } from "react";
 import { API } from "../../config/api";
+
 export default function Sidebar({
   setSelectedLayers,
   setBuffer,
+  setGridSize,
+  setWeights,
   setAnalysisLayers,
   analysisLayers,
   showAnalysisOptions,
 }) {
   const [layers, setLayers] = useState([]);
   const [selected, setSelected] = useState([{ table_name: "road_network3" }]);
+  const [analysisTargetLayer, setAnalysisTargetLayer] = useState([]);
   const [bufferValue, setBufferValue] = useState(300);
 
-  //  Allowed layers only
+  const [accordionOpen, setAccordionOpen] = useState({
+    layers: true,
+    analysis: true,
+  });
+
+  const [gridSize, updateGridSize] = useState(50);
+
+  const [weightsState, updateWeights] = useState({
+    temple: 5,
+    parking: 3,
+    junction: 2,
+    hotel: 2,
+    building: 1,
+  });
+
   const allowedLayers = [
     "road_network3",
     "toilets_sanitation",
@@ -19,9 +37,9 @@ export default function Sidebar({
     "parking_loc",
     "temple_ujjain",
     "junction",
+    "junction",
   ];
 
-  //  Labels + Icons
   const layerLabelMap = {
     toilets_sanitation: "Toilet",
     police_station: "Police Station",
@@ -31,11 +49,9 @@ export default function Sidebar({
     junction: "Junctions",
   };
 
-  //  Helper function to find layer by name
   const findLayerByName = (data, name) =>
     data.find((l) => l.table_name === name);
 
-  //  Helper function to handle layer data
   const handleLayerData = (data) => {
     if (!data?.data) return;
 
@@ -53,30 +69,24 @@ export default function Sidebar({
     }
   };
 
-  //  Fetch layers from backend
   useEffect(() => {
     fetch(API.layerList, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     })
       .then((res) => res.json())
       .then(handleLayerData)
-      .catch((err) => {
-        console.error("Error fetching layers:", err);
-      });
+      .catch(console.error);
   }, []);
 
-  //  Handle checkbox selection
   const handleSelect = (layer) => {
     debugger;
     let updated;
 
-    const isSelected = selected.find((l) => l.table_name === layer.table_name);
+    const exists = selected.find((l) => l.table_name === layer.table_name);
 
-    if (isSelected) {
+    if (exists) {
       updated = selected.filter((l) => l.table_name !== layer.table_name);
 
       //  RESET ANALYSIS if toilets removed
@@ -94,41 +104,69 @@ export default function Sidebar({
     setSelectedLayers(updated.map((l) => l.table_name));
   };
 
+  const toggleAccordion = (key) =>
+    setAccordionOpen((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+
+  const updateWeightValue = (key, value) => {
+    const updated = { ...weightsState, [key]: value };
+
+    updateWeights(updated);
+    setWeights(updated);
+  };
   const hasSitePriority = analysisLayers.site_priority;
 
   return (
-    <div className="w-72 bg-gradient-to-b from-[#0f2a44] to-[#133b5c] text-white p-5 shadow-xl border-r border-orange-500/20">
-      {/* Title */}
-      <h2 className="text-xl font-semibold mb-4 tracking-wide">Layer List</h2>
+    <div className="w-72  text-white p-5 pr-8">
+      {/* ================= LAYER LIST ================= */}
 
-      {/* Layers */}
-      <div className="space-y-2">
-        {layers.map((layer) => (
-          <label
-            key={layer.layer_id}
-            htmlFor={`layer-${layer.layer_id}`}
-            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition 
-            ${
-              selected.find((l) => l.table_name === layer.table_name)
-                ? "bg-white/10 border border-orange-400/30"
-                : "hover:bg-white/5"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <input
-                id={`layer-${layer.layer_id}`}
-                type="checkbox"
-                checked={
-                  !!selected.find((l) => l.table_name === layer.table_name)
-                }
-                onChange={(e) => {
-                  e.stopPropagation();
-                  handleSelect(layer);
-                }}
-              />
+      <div>
+        <button
+          onClick={() => toggleAccordion("layers")}
+          className="w-full flex justify-between items-center 
+             bg-white/10 hover:bg-white/20 
+             px-3 py-2 rounded-lg 
+             text-orange-300 font-semibold tracking-wide 
+             border border-white/10 transition"
+        >
+          <span>Layer List</span>
 
-              <div className="flex flex-col">
-                <span>{layerLabelMap[layer.table_name]}</span>
+          <span className="text-lg">{accordionOpen.layers ? "▾" : "▸"}</span>
+        </button>
+
+        <div
+          className={`mt-3 space-y-2 transition-all duration-300 overflow-hidden
+            ${accordionOpen.layers ? "max-h-[600px]" : "max-h-0"}
+            `}
+        >
+          {layers.map((layer) => (
+            <div key={layer.layer_id}>
+              {/* MAIN LAYER CHECKBOX */}
+
+              <label
+                className={`flex items-center justify-between px-2 py-2 rounded-lg cursor-pointer
+                  ${
+                    selected.find((l) => l.table_name === layer.table_name)
+                      ? "bg-white/10 border border-orange-400/20"
+                      : "hover:bg-white/5"
+                  }`}
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={
+                      !!selected.find((l) => l.table_name === layer.table_name)
+                    }
+                    onChange={() => handleSelect(layer)}
+                  />
+
+                  <span>{layerLabelMap[layer.table_name]}</span>
+                </div>
+              </label>
+
+              {/* SUB CHECKBOXES (DEMAND / SUPPLY) */}
 
                 {layer.table_name === "toilets_sanitation" &&
                   showAnalysisOptions && (
@@ -202,54 +240,192 @@ export default function Sidebar({
         ))}
       </div>
 
-      {/* Divider */}
-      <div className="my-5 border-t border-white/10"></div>
+      {/* ================= ANALYSIS SETTINGS ================= */}
 
-      {/* Buffer */}
-      <div>
-        <h3 className="text-sm font-medium mb-2">Buffer Distance</h3>
+      <div className="mt-6">
+        <button
+          onClick={() => toggleAccordion("analysis")}
+          className="w-full flex justify-between items-center 
+             bg-white/10 hover:bg-white/20 
+             px-3 py-2 rounded-lg 
+             text-cyan-300 font-semibold tracking-wide 
+             border border-white/10 transition"
+        >
+          <span>Analysis Settings</span>
 
-        <input
-          type="range"
-          min="100"
-          max="500"
-          step="50"
-          value={bufferValue}
-          onChange={(e) => {
-            const meters = Number(e.target.value);
+          <span className="text-lg">{accordionOpen.analysis ? "▾" : "▸"}</span>
+        </button>
 
-            setBufferValue(meters);
+        <div
+          className={`mt-4 space-y-6 bg-white/5 rounded-xl 
+            transition-all duration-300 overflow-hidden
+            ${
+              accordionOpen.analysis
+                ? "max-h-[900px] opacity-100"
+                : "max-h-0 opacity-0"
+            } p-4 border border-white/10
+            `}
+        >
+          {/* ================= ANALYSIS LAYER MULTI SELECT ================= */}
 
-            setBuffer(meters / 1000);
-          }}
-          className="w-full accent-orange-400"
-        />
+          <div>
+            <h4
+              className="text-xs uppercase tracking-wider 
+              text-yellow-300 mb-3"
+            >
+              Analysis Layer
+            </h4>
 
-        <div className="flex justify-between text-xs mt-1 text-gray-300">
-          <span>100m</span>
-          <span>500m</span>
-        </div>
+            <div className="space-y-2">
+              {layers.map((layer) => {
+                const isChecked = analysisTargetLayer.includes(
+                  layer.table_name,
+                );
 
-        <div className="mt-2 text-center bg-white/10 rounded p-2 text-sm">
-          {bufferValue} m radius
+                return (
+                  <label
+                    key={layer.layer_id}
+                    className={`flex items-center justify-between 
+                      px-3 py-2 rounded-lg cursor-pointer text-sm transition
+          
+                        ${
+                          isChecked
+                            ? "bg-yellow-500 text-white"
+                            : "bg-white/5 hover:bg-white/10"
+                        }`}
+                  >
+                    <span>{layerLabelMap[layer.table_name]}</span>
+
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        if (isChecked) {
+                          setAnalysisTargetLayer((prev) =>
+                            prev.filter((name) => name !== layer.table_name),
+                          );
+                        } else {
+                          setAnalysisTargetLayer((prev) => [
+                            ...prev,
+                            layer.table_name,
+                          ]);
+                        }
+                      }}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          {/* ================= BUFFER ================= */}
+
+          <div className="border-t border-white/10 pt-4">
+            <h4
+              className="text-xs uppercase tracking-wider 
+                   text-orange-300 mb-3"
+            >
+              Buffer Distance
+            </h4>
+
+            <input
+              type="range"
+              min="100"
+              max="500"
+              step="50"
+              value={bufferValue}
+              onChange={(e) => {
+                const meters = Number(e.target.value);
+                setBufferValue(meters);
+                setBuffer(meters / 1000);
+              }}
+              className="w-full accent-orange-400"
+            />
+
+            <div
+              className="text-center mt-2 
+                    text-xs bg-white/10 
+                    px-2 py-1 rounded-md inline-block"
+            >
+              {bufferValue} meters radius
+            </div>
+          </div>
+
+          {/* ================= GRID SIZE ================= */}
+
+          <div className="border-t border-white/10 pt-4">
+            <h4
+              className="text-xs uppercase tracking-wider 
+                   text-cyan-300 mb-3"
+            >
+              Grid Size
+            </h4>
+
+            <div className="flex gap-3">
+              {[50, 100, 150].map((size) => (
+                <label
+                  key={size}
+                  className={`px-3 py-1 rounded-lg 
+                      border text-xs cursor-pointer
+                      transition
+
+          ${
+            gridSize === size
+              ? "bg-cyan-500 border-cyan-500 text-white"
+              : "border-white/30 hover:border-cyan-300"
+          }`}
+                >
+                  <input
+                    type="radio"
+                    hidden
+                    name="gridSize"
+                    checked={gridSize === size}
+                    onChange={() => {
+                      updateGridSize(size);
+                      setGridSize(size);
+                    }}
+                  />
+                  {size} m
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* ================= WEIGHT SETTINGS ================= */}
+
+          <div className="border-t border-white/10 pt-4">
+            <h4
+              className="text-xs uppercase tracking-wider 
+                   text-purple-300 mb-3"
+            >
+              Weight Settings
+            </h4>
+
+            <div className="space-y-2">
+              {Object.keys(weightsState).map((key) => (
+                <div
+                  key={key}
+                  className="flex justify-between items-center
+                     bg-white/5 px-3 py-2 rounded-lg
+                     hover:bg-white/10 transition"
+                >
+                  <span className="capitalize text-sm">{key}</span>
+
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={weightsState[key]}
+                    onChange={(e) =>
+                      updateWeightValue(key, Number(e.target.value))
+                    }
+                    className="w-12 text-black px-1 rounded text-center"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Buttons */}
-      {/* <div className="flex gap-3 mt-6">
-        <button
-          className="flex-1 bg-orange-500 hover:bg-orange-600 transition p-2 rounded-lg font-medium shadow"
-        >
-          Apply
-        </button>
-
-        <button
-          onClick={handleClear}
-          className="flex-1 bg-gray-600 hover:bg-gray-700 transition p-2 rounded-lg"
-        >
-          Clear
-        </button>
-      </div> */}
     </div>
   );
 }
