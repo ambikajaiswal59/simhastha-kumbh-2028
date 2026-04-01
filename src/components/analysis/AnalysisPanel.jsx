@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import SuitableLandForm from "../form/SuitableLandForm";
 
 export default function AnalysisPanel({
+  buffer,
   selectedTypes = [],
   analysisData = {},
   selectedFeature,
@@ -17,10 +18,12 @@ export default function AnalysisPanel({
   handleToiletAnalysis,
 }) {
   const TYPE_LABELS = {
-    toilets_sanitation: "Toilet Sanitation",
-    road_network3: "Road Network",
+    toilets_sanitation: "Toilet",
+    road_network3: "Road",
     police_station: "Police Station",
-    parking_loc: "Parking Location",
+    parking_loc: "Parking",
+    temple_ujjain: "Temple",
+  
   };
 
   const IGNORE_KEYS = new Set([
@@ -40,6 +43,8 @@ export default function AnalysisPanel({
     "upd_date",
     "upd_time",
   ]);
+  const [openCoreZones, setOpenCoreZones] = useState({});
+
 
   useEffect(() => {
     if (analysisLayers.suitable_land) {
@@ -48,6 +53,11 @@ export default function AnalysisPanel({
       setShowLandSuitableDropdown(false);
     }
   }, [analysisLayers]);
+  const getZoneHeading = (zone) => {
+    const totalMeters = Math.round(buffer * 1000);
+    const zoneMeters = Math.round((totalMeters / 4) * zone);
+    return `Zone ${zone} (0-${zoneMeters} m)`;
+  };
 
   return (
     <div className="w-80 h-full bg-gradient-to-b from-[#0f2a44] to-[#133b5c] p-4 border-l overflow-y-auto">
@@ -58,8 +68,8 @@ export default function AnalysisPanel({
 
       {/* {selectedTypes?.includes("toilets_sanitation") && (
         <div className="flex flex-col gap-2 mb-4"> */}
-          {/* Reusable Button */}
-          {/* {[
+      {/* Reusable Button */}
+      {/* {[
             { key: "demand", label: "Demand Analysis" },
             { key: "supply", label: "Supply Gap Analysis" },
           ].map((btn) => (
@@ -83,8 +93,8 @@ export default function AnalysisPanel({
             </button>
           ))} */}
 
-          {/* Site Priority */}
-          {/* <button
+      {/* Site Priority */}
+      {/* <button
             onClick={() => {
               setShowAnalysisOptions(true);
               setShowLandSuitableDropdown((prev) => !prev);
@@ -201,6 +211,8 @@ export default function AnalysisPanel({
         {selectedTypes.map((type) => {
           const item = analysisData[type];
           if (!item) return null;
+          const lastZone = item.coreZones?.[item.coreZones.length - 1];
+
 
           return (
             <div key={type} className="bg-white p-3 rounded shadow-sm">
@@ -210,49 +222,268 @@ export default function AnalysisPanel({
                 </span>
 
                 <span className="font-bold text-blue-600 text-sm">
-                  {item.point_count}
+                  {item.coreZones?.[item.coreZones.length - 1]?.total_feature ??
+                    item.point_count}
                 </span>
               </div>
 
-              {/* FEATURE DATA */}
-              {/* {selectedFeature && (
-                <div className="mt-3 border-t pt-2 space-y-1">
-                  {Object.entries(selectedFeature)
-                    .filter(([key]) => !IGNORE_KEYS.has(key))
-                    .map(([key, value]) => (
-                      <div
-                        key={key}
-                        className="flex justify-between text-xs text-gray-700"
-                      >
-                        <span className="capitalize">
-                          {key.replace(/_/g, " ")}
-                        </span>
-                        <span className="font-medium">{String(value)}</span>
-                      </div>
-                    ))}
+              {/* <div className="mt-2 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-xs text-gray-600">
+                    Avg Distance:{" "}
+                    <b>
+                     {Math.round(
+  Number(
+    item.coreZones?.[item.coreZones.length - 1]?.avg_distance || 0
+  )
+)}{" "} m
+            
+                    </b>
+                  </p>
+
+                  <button
+                    onClick={() => {
+                      const isOpening = !openCoreZones[type];
+
+                      setOpenCoreZones((prev) => ({
+                        ...prev,
+                        [type]: !prev[type],
+                      }));
+
+                    if (isOpening) {
+                      window.dispatchEvent(
+                        new CustomEvent("run-core-analysis"),
+                      );
+                    }
+
+                    }}
+                    className={`text-white text-xs transition px-3 py-1.5 rounded-full ${
+                      openCoreZones[type]
+                        ? "bg-orange-500 hover:bg-orange-600"
+                        : "bg-orange-400 hover:bg-orange-500"
+                    }`}
+                  >
+                    Core Analysis
+                  </button>
                 </div>
-              )} */}
 
-              <div className="mt-2 flex items-center justify-between gap-4">
-                <p className="text-xs text-gray-600">
-                  Avg Distance: <b>{Math.round(item.avg_distance_meters)} m</b>
-                </p>
-                {/* <button
-                  className="bg-orange-400 text-white text-xs 
-  hover:bg-orange-500 transition px-3 py-1.5 rounded-full"
-                >
-                  Core Analysis
-                </button> */}
+                {openCoreZones[type] && item.coreZones?.length > 0 && (
+                  <div className="space-y-2 border-t pt-3">
+                    {item.coreZones.map((zoneItem) => {
+                      const zoneStyles = {
+                        1: {
+                          card: "border-green-700 bg-green-100",
+                          title: "text-green-700",
+                        },
+                        2: {
+                          card: "border-yellow-700 bg-yellow-100",
+                          title: "text-yellow-800",
+                        },
+                        3: {
+                          card: "border-blue-700 bg-blue-100",
+                          title: "text-blue-700",
+                        },
+                        4: {
+                          card: "border-red-700 bg-red-100",
+                          title: "text-red-700",
+                        },
+                      };
 
-                <button
-                  onClick={() =>
-                    window.dispatchEvent(new CustomEvent("run-core-analysis"))
-                  }
-                  className="bg-orange-400 text-white text-xs   
-                hover:bg-orange-500 transition px-3 py-1.5 rounded-full"
-                >
-                  Core Analysis
-                </button>
+                      const currentZoneStyle = zoneStyles[zoneItem.zone] || {
+                        card: "border-orange-900 bg-orange-50",
+                        title: "text-orange-700",
+                      };
+
+                      return (
+                        <div
+                          key={zoneItem.zone}
+                          className={`rounded-md border p-2 ${currentZoneStyle.card}`}
+                        >
+                          <div
+                            className={`mb-2 text-xs font-semibold ${currentZoneStyle.title}`}
+                          >
+                            {getZoneHeading(zoneItem.zone)}
+                          </div>
+
+                          <div className="space-y-1">
+                            {[
+                              {
+                                label: "Total Feature",
+                                value: zoneItem.total_feature,
+                              },
+                              {
+                                label: "Nearest Distance",
+                                value: `${Math.round(Number(zoneItem.nearest_distance))} m`,
+                              },
+                              {
+                                label: "Avg Distance",
+                                value: `${Math.round(Number(zoneItem.avg_distance))} m`,
+                              },
+                              {
+                                label: "Density",
+                                value: Number(zoneItem.density).toFixed(2),
+                              },
+                            ].map((row) => (
+                              <div
+                                key={row.label}
+                                className="grid grid-cols-[1fr_auto] gap-2 text-xs text-gray-700"
+                              >
+                                <span>{row.label}</span>
+                                <span className="font-medium">{row.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div> */}
+              <div className="mt-2 flex flex-col gap-3">
+                {!openCoreZones[type] && item.coreZones?.length > 0 && (
+                  <div className="rounded-md border border-red-700 bg-red-100 p-2">
+                    <div className="space-y-1">
+                      {[
+                        {
+                          label: "Total Feature",
+                          value:
+                            item.coreZones[item.coreZones.length - 1]
+                              .total_feature,
+                        },
+                        {
+                          label: "Nearest Distance",
+                          value: `${Math.round(
+                            Number(
+                              item.coreZones[item.coreZones.length - 1]
+                                .nearest_distance,
+                            ),
+                          )} m`,
+                        },
+                        {
+                          label: "Avg Distance",
+                          value: `${Math.round(
+                            Number(
+                              item.coreZones[item.coreZones.length - 1]
+                                .avg_distance,
+                            ),
+                          )} m`,
+                        },
+                        {
+                          label: "Density",
+                          value: Number(
+                            item.coreZones[item.coreZones.length - 1].density,
+                          ).toFixed(2),
+                        },
+                      ].map((row) => (
+                        <div
+                          key={row.label}
+                          className="grid grid-cols-[1fr_auto] gap-2 text-xs text-gray-700"
+                        >
+                          <span>{row.label}</span>
+                          <span className="font-medium">{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      const isOpening = !openCoreZones[type];
+
+                      setOpenCoreZones((prev) => ({
+                        ...prev,
+                        [type]: !prev[type],
+                      }));
+
+                      if (isOpening) {
+                        window.dispatchEvent(
+                          new CustomEvent("run-core-analysis"),
+                        );
+                      }
+                    }}
+                    className={`text-white text-xs transition px-3 py-1.5 rounded-full ${
+                      openCoreZones[type]
+                        ? "bg-orange-500 hover:bg-orange-600"
+                        : "bg-orange-400 hover:bg-orange-500"
+                    }`}
+                  >
+                    Core Analysis
+                  </button>
+                </div>
+
+                {openCoreZones[type] && item.coreZones?.length > 0 && (
+                  <div className="space-y-2 border-t pt-3">
+                    {item.coreZones.map((zoneItem) => {
+                      const zoneStyles = {
+                        1: {
+                          card: "border-green-700 bg-green-100",
+                          title: "text-green-700",
+                        },
+                        2: {
+                          card: "border-yellow-700 bg-yellow-100",
+                          title: "text-yellow-800",
+                        },
+                        3: {
+                          card: "border-blue-700 bg-blue-100",
+                          title: "text-blue-700",
+                        },
+                        4: {
+                          card: "border-red-700 bg-red-100",
+                          title: "text-red-700",
+                        },
+                      };
+
+                      const currentZoneStyle = zoneStyles[zoneItem.zone] || {
+                        card: "border-orange-900 bg-orange-50",
+                        title: "text-orange-700",
+                      };
+
+                      return (
+                        <div
+                          key={zoneItem.zone}
+                          className={`rounded-md border p-2 ${currentZoneStyle.card}`}
+                        >
+                          <div
+                            className={`mb-2 text-xs font-semibold ${currentZoneStyle.title}`}
+                          >
+                            {getZoneHeading(zoneItem.zone)}
+                          </div>
+
+                          <div className="space-y-1">
+                            {[
+                              {
+                                label: "Total Feature",
+                                value: zoneItem.total_feature,
+                              },
+                              {
+                                label: "Nearest Distance",
+                                value: `${Math.round(Number(zoneItem.nearest_distance))} m`,
+                              },
+                              {
+                                label: "Avg Distance",
+                                value: `${Math.round(Number(zoneItem.avg_distance))} m`,
+                              },
+                              {
+                                label: "Density",
+                                value: Number(zoneItem.density).toFixed(2),
+                              },
+                            ].map((row) => (
+                              <div
+                                key={row.label}
+                                className="grid grid-cols-[1fr_auto] gap-2 text-xs text-gray-700"
+                              >
+                                <span>{row.label}</span>
+                                <span className="font-medium">{row.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           );

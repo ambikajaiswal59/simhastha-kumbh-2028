@@ -12,4 +12,6 @@ export const API = {
   aoi: `${API_URL}/aoi_layer`,
   suitableLand: `${API_URL}/suitable_land`,
   sanitation: `${API_URL}/santitation_scenario`,
+  coreAnalysis: `${API_URL}/v1/get_feature_count_avg_distance`,
+
 };

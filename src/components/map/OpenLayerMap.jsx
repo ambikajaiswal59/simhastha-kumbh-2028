@@ -420,7 +420,7 @@ export default function OpenLayerMap({
   //   return () => mapObj.current.setTarget(null);
   // }, []);
   useEffect(() => {
-    if (mapObj.current) return; // ✅ prevent re-init
+    if (mapObj.current) return; // prevent re-init
 
     vectorSourceRef.current = new VectorSource();
 
@@ -574,10 +574,12 @@ export default function OpenLayerMap({
   // CLICK HANDLER 🔥 (OPTIMIZED)
   // -----------------------------
   const handleMapClick = (evt) => {
-    debugger;
+
     const [lon, lat] = toLonLat(evt.coordinate);
+    console.log("Clicked lat/lon:", { latitude: lat, longitude: lon });
+
     ////************************* */
-    // lastClickedCoordinateRef.current = evt.coordinate;
+    lastClickedCoordinateRef.current = evt.coordinate;
 
 
     let found = false;
@@ -626,6 +628,8 @@ export default function OpenLayerMap({
     if (bufferEnabledRef.current) {
       selectedRef.current.forEach((type) => {
         fetchAnalysis(type, lat, lon);
+         fetchCoreAnalysis(type, lat, lon);
+  
       });
 
       if (bufferRef.current > 0) {
@@ -668,18 +672,150 @@ export default function OpenLayerMap({
   //     source.addFeature(circleFeature);
   //   });
   // };
+  // const drawCoreAnalysisCircles = () => {
+  //   const coordinate = lastClickedCoordinateRef.current;
+
+  //   if (!coordinate || !bufferLayerRef.current) return;
+
+  //   const totalDistance = bufferRef.current * 1000;
+  //   if (totalDistance <= 0) return;
+
+  //   const aoiFeatures = aoiLayerRef.current?.getSource()?.getFeatures();
+  //   if (!aoiFeatures || aoiFeatures.length === 0) return;
+
+  //   const aoiGeometry = aoiFeatures[0].getGeometry();
+  //   if (!aoiGeometry.intersectsCoordinate(coordinate)) return;
+
+  //   const source = bufferLayerRef.current.getSource();
+  //   source.clear();
+
+  //   const format = new GeoJSON();
+  //   const coord4326 = transform(coordinate, "EPSG:3857", "EPSG:4326");
+  //   const point = turf.point(coord4326);
+
+  //   const aoiGeoJSON3857 = format.writeFeatureObject(aoiFeatures[0]);
+  //   const aoiGeoJSON4326 = turf.toWgs84(aoiGeoJSON3857);
+
+  //   const circleColors = ["green", "yellow", "blue", "red"];
+
+  //   [1, 2, 3, 4].forEach((step) => {
+  //     const ringDistance = (totalDistance / 4) * step;
+
+  //     const ringBuffer = turf.buffer(point, ringDistance / 1000, {
+  //       units: "kilometers",
+  //     });
+
+  //     const clipped = turf.intersect(
+  //       turf.featureCollection([ringBuffer, aoiGeoJSON4326]),
+  //     );
+
+  //     if (!clipped) return;
+
+  //     const clipped3857 = turf.toMercator(clipped);
+  //     const circleFeature = format.readFeature(clipped3857);
+
+  //     circleFeature.setStyle(
+  //       new Style({
+  //         stroke: new Stroke({
+  //           color: circleColors[step - 1],
+  //           width: step === 4 ? 3 : 2,
+  //           lineDash: [6, 6],
+  //         }),
+  //         fill: new Fill({
+  //           color: "rgba(0,0,0,0)",
+  //         }),
+  //       }),
+  //     );
+
+  //     source.addFeature(circleFeature);
+  //   });
+  // };
+const drawCoreAnalysisCircles = () => {
+  const coordinate = lastClickedCoordinateRef.current;
+
+  if (!coordinate || !bufferLayerRef.current) return;
+
+  const totalDistance = bufferRef.current * 1000;
+  if (totalDistance <= 0) return;
+
+  const aoiFeatures = aoiLayerRef.current?.getSource()?.getFeatures();
+  if (!aoiFeatures || aoiFeatures.length === 0) return;
+
+  const aoiGeometry = aoiFeatures[0].getGeometry();
+  if (!aoiGeometry.intersectsCoordinate(coordinate)) return;
+
+  const source = bufferLayerRef.current.getSource();
+  source.clear();
+
+  const format = new GeoJSON();
+  const coord4326 = transform(coordinate, "EPSG:3857", "EPSG:4326");
+  const point = turf.point(coord4326);
+
+  const aoiGeoJSON3857 = format.writeFeatureObject(aoiFeatures[0]);
+  const aoiGeoJSON4326 = turf.toWgs84(aoiGeoJSON3857);
+
+  const circleColors = [
+    { stroke: "green", fill: "rgba(0, 128, 0, 0.18)" },
+    { stroke: "yellow", fill: "rgba(255, 255, 0, 0.18)" },
+    { stroke: "blue", fill: "rgba(0, 0, 255, 0.18)" },
+    { stroke: "red", fill: "rgba(255, 0, 0, 0.18)" },
+  ];
+
+  [1, 2, 3, 4].forEach((step) => {
+    const ringDistance = (totalDistance / 4) * step;
+
+    const ringBuffer = turf.buffer(point, ringDistance / 1000, {
+      units: "kilometers",
+    });
+
+    const clipped = turf.intersect(
+      turf.featureCollection([ringBuffer, aoiGeoJSON4326]),
+    );
+
+    if (!clipped) return;
+
+    const clipped3857 = turf.toMercator(clipped);
+    const circleFeature = format.readFeature(clipped3857);
+
+    circleFeature.setStyle(
+      new Style({
+        stroke: new Stroke({
+          color: circleColors[step - 1].stroke,
+          width: step === 4 ? 3 : 2,
+          lineDash: [6, 6],
+        }),
+        fill: new Fill({
+          color: circleColors[step - 1].fill,
+        }),
+      }),
+    );
+
+    source.addFeature(circleFeature);
+  });
+};
+
 ////************************************** ***********/
-  // useEffect(() => {
-  //   const handleCoreAnalysis = () => {
-  //     drawCoreAnalysisCircles();
-  //   };
+  useEffect(() => {
+ const handleCoreAnalysis = () => {
+   const coordinate = lastClickedCoordinateRef.current;
+   if (!coordinate) return;
 
-  //   window.addEventListener("run-core-analysis", handleCoreAnalysis);
+   const [lon, lat] = toLonLat(coordinate);
 
-  //   return () => {
-  //     window.removeEventListener("run-core-analysis", handleCoreAnalysis);
-  //   };
-  // }, []);
+   drawCoreAnalysisCircles();
+
+   selectedRef.current.forEach((type) => {
+     fetchCoreAnalysis(type, lat, lon);
+   });
+ };
+
+
+    window.addEventListener("run-core-analysis", handleCoreAnalysis);
+
+    return () => {
+      window.removeEventListener("run-core-analysis", handleCoreAnalysis);
+    };
+  }, []);
 
 
   // -----------------------------
@@ -802,7 +938,7 @@ export default function OpenLayerMap({
   // -----------------------------
   useEffect(() => {
     if (!mapObj.current) return;
-    debugger;
+
     Object.values(layerRef.current).forEach((l) =>
       mapObj.current.removeLayer(l),
     );
@@ -984,6 +1120,35 @@ export default function OpenLayerMap({
         }
       });
   };
+  /************************ */
+  const fetchCoreAnalysis = (type, lat, lon) => {
+    fetch(API.coreAnalysis, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tableName: type,
+        latitude: String(lat),
+        longitude: String(lon),
+        bufferRadius: String(bufferRef.current * 1000),
+      }),
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.status === "success" && Array.isArray(res.data)) {
+          setAnalysisData((prev) => ({
+            ...prev,
+            [type]: {
+              ...(prev[type] || {}),
+              coreZones: [...res.data].sort((a, b) => a.zone - b.zone),
+            },
+          }));
+        }
+      })
+      .catch(console.error);
+  };
+/******** */
 
   // -----------------------------
   // AOI API
@@ -1305,11 +1470,14 @@ export default function OpenLayerMap({
   );
 }
 /**
- * 
-Make button and separate the Buffer Analysis from the Analysis Settings
-Change the positions of the legends and analysis results buttons and checkboxes
-Make the button independent so when the first is clicked, the next is enabled to click
-Change UI text and other related items according to suggestions
-Bind the API data to show building, landmark, road, locality with Amenity Distance heading
-Add the base map switcher for satellite, make toggle, and add functionality to change
+ 
+ 
+ curl --location 'https://mlinfomap.biz/ujjain-api/v1/get_feature_count_avg_distance' \
+--header 'Content-Type: application/json' \
+--data '{
+  "tableName":"toilets_sanitation",
+  "latitude":"23.182534345746117",
+  "longitude":"75.76915883991246",
+  "bufferRadius":"300"
+}'
  */

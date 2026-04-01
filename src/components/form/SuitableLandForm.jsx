@@ -25,7 +25,7 @@ const SuitableLandForm = ({
     { id: 5, label: "Medical", field: "medical" },
     { id: 6, label: "Police", field: "police" },
     { id: 7, label: "Electric", field: "electric" },
-    { id: 8, label: "River", field: "river" },
+    { id: 8, label: "Ghat", field: "river" },
   ];
 
   return (

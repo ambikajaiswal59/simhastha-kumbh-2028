@@ -87,7 +87,7 @@ export default function Sidebar({
 
   const handleSelect = (layer) => {
     let updated;
-    debugger;
+   
     const exists = selected.find((l) => l.table_name === layer.table_name);
 
     if (exists) {
