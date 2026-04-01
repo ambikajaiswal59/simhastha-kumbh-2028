@@ -22,9 +22,11 @@ import { useMapContext } from "../../context/MapContext";
 import { Paper, Typography, Stack, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import LocationIcon from "../../assets/location.svg";
+import WKT from "ol/format/WKT";
 
 export default function OpenLayerMap({
   buffer,
+  mlBuffer,
   selectedTypes = [],
   updateAnalysis,
   setAnalysisData,
@@ -42,7 +44,7 @@ export default function OpenLayerMap({
     scenerioSanitationRef,
     clickMarkerLayerRef,
   } = useMapContext();
-
+  const [mapReady, setMapReady] = useState(false);
   const selectedRef = useRef([]);
   const vectorSourceRef = useRef(null);
   const vectorLayerRef = useRef(null);
@@ -54,7 +56,7 @@ export default function OpenLayerMap({
   const bufferRef = useRef(buffer);
   const [showLegend, setShowLegend] = useState(false);
   const gapLayerRef = useRef(null);
-
+  const mlLayerRef = useRef(null);
   const [popupInfo, setPopupInfo] = useState(null);
   const popupRef = useRef(null);
   const overlayRef = useRef(null);
@@ -235,180 +237,6 @@ export default function OpenLayerMap({
     selectedRef.current = selectedTypes;
   }, [selectedTypes]);
 
-  // -----------------------------
-  // INIT MAP
-  // -----------------------------
-  // useEffect(() => {
-  //   //  Base vector layer (your existing)
-  //   vectorSourceRef.current = new VectorSource();
-
-  //   vectorLayerRef.current = new VectorLayer({
-  //     source: vectorSourceRef.current,
-  //   });
-
-  //   //  CREATE MAP
-  //   mapObj.current = new Map({
-  //     target: mapRef.current,
-  //     layers: [
-  //       new TileLayer({
-  //         source: new OSM(),
-  //       }),
-  //       vectorLayerRef.current,
-  //     ],
-  //     view: new View({
-  //       center: fromLonLat([75.7683, 23.1824]),
-  //       zoom: 15,
-  //     }),
-  //     controls: defaultControls({
-  //       zoom: true,
-  //       rotate: false,
-  //       attribution: false,
-  //     }),
-  //   });
-
-  //   // ✅ Add overlay HERE (safe)
-  //   overlayRef.current = new Overlay({
-  //     element: popupRef.current,
-  //     positioning: "bottom-center",
-  //     stopEvent: true,
-  //     offset: [0, -10],
-  //   });
-
-  //   mapObj.current.addOverlay(overlayRef.current);
-
-  //   //  ADD DEMAND + SUPPLY LAYERS HERE (IMPORTANT)
-
-  //   demandLayerRef.current = new VectorLayer({
-  //     source: new VectorSource(),
-  //     style: demandLayerStyle,
-  //     visible: false,
-  //   });
-  //   demandLayerRef.current.set("name", "Demand Layer");
-
-  //   supplyLayerRef.current = new VectorLayer({
-  //     source: new VectorSource(),
-  //     style: supplyLayerStyle,
-  //     visible: false,
-  //   });
-  //   supplyLayerRef.current.set("name", "Supply Layer");
-  //   //  AOI Layer
-  //   aoiLayerRef.current = new VectorLayer({
-  //     source: new VectorSource(),
-  //     style: aoiStyle,
-  //   });
-  //   aoiLayerRef.current.set("name", "AOI Layer");
-
-  //   gapLayerRef.current = new VectorLayer({
-  //     source: new VectorSource(),
-  //     style: gapLayerStyle,
-  //     visible: false,
-  //   });
-  //   gapLayerRef.current.set("name", "Gap Layer");
-
-  //   bufferLayerRef.current = new VectorLayer({
-  //     source: new VectorSource(),
-  //     zIndex: 9999, // Set a very high zIndex to ensure this layer is on top
-  //   });
-  //   bufferLayerRef.current.set("name", "Buffer Layer");
-
-  //   suitableLandRef.current = new VectorLayer({
-  //     source: new VectorSource(),
-  //     style: suitableLandLayerStyle,
-  //     visible: false,
-  //   });
-  //   suitableLandRef.current.set("name", "SuitableLand Layer");
-
-  //   scenerioSanitationRef.current = new VectorLayer({
-  //     source: new VectorSource(),
-  //     style: invisibleStyle,
-  //     visible: true,
-  //     title: "ScenerioSanitation",
-  //   });
-  //   scenerioSanitationRef.current.set("name", "ScenerioSanitation Layer");
-
-  //   if (!clickMarkerLayerRef.current) {
-  //     clickMarkerLayerRef.current = new VectorLayer({
-  //       source: new VectorSource(),
-  //       zIndex: 99999,
-  //     });
-
-  //     mapObj.current.addLayer(clickMarkerLayerRef.current);
-  //   }
-
-  //   mapObj.current.addLayer(bufferLayerRef.current);
-
-  //   //  ORDER MATTERS (VERY IMPORTANT)
-  //   mapObj.current.addLayer(demandLayerRef.current); // bottom
-  //   mapObj.current.addLayer(supplyLayerRef.current); // top (swipe layer)
-  //   mapObj.current.addLayer(aoiLayerRef.current);
-  //   mapObj.current.addLayer(gapLayerRef.current);
-  //   mapObj.current.addLayer(suitableLandRef.current);
-  //   mapObj.current.addLayer(scenerioSanitationRef.current);
-  //   loadAOI();
-  //   suitableLand();
-  //   sanitationScenerio();
-  //   //  CLICK EVENT
-  //   mapObj.current.on("click", (evt) => {
-  //     const coord = toLonLat(evt.coordinate);
-  //     const lat = coord[1];
-  //     const lon = coord[0];
-
-  //     const clickedLayers = [];
-  //     let found = false;
-
-  //     mapObj.current.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
-  //       const properties = { ...feature.getProperties() };
-
-  //       const layerName = layer.get("name") || "Unnamed Layer";
-
-  //       delete properties.geometry;
-
-  //       clickedLayers.push({
-  //         layer: layerName,
-  //         properties,
-  //       });
-
-  //       setSelectedFeature(properties);
-  //       debugger;
-  //       if (layer.get("name") === "ScenerioSanitation Layer") {
-  //         setPopupInfo(properties);
-
-  //         // show popup
-  //         overlayRef.current.setPosition(evt.coordinate);
-
-  //         // 🔥 ADD MARKER HERE
-  //         const source = clickMarkerLayerRef.current.getSource();
-
-  //         source.clear(); // optional: keep only one marker
-
-  //         const marker = new Feature({
-  //           geometry: new Point(evt.coordinate),
-  //         });
-
-  //         marker.setStyle(markerStyle);
-  //         source.addFeature(marker);
-
-  //         found = true;
-  //       }
-  //     });
-  //     // Close popup if clicked elsewhere
-  //     if (!found) {
-  //       overlayRef.current.setPosition(undefined);
-  //       clickMarkerLayerRef.current.getSource().clear();
-  //     }
-
-  //     if (bufferEnabled.current === true) {
-  //       selectedRef.current.forEach((type) => {
-  //         fetchAnalysis(type, lat, lon);
-  //       });
-  //       if (bufferRef.current > 0) {
-  //         runBufferAnalysis(evt.coordinate);
-  //       }
-  //     }
-  //   });
-
-  //   return () => mapObj.current.setTarget(null);
-  // }, []);
   useEffect(() => {
     if (mapObj.current) return; // ✅ prevent re-init
 
@@ -483,7 +311,23 @@ export default function OpenLayerMap({
       source: new VectorSource(),
       zIndex: 99999,
     });
+    mlLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      zIndex: 99999, // below click marker, above others if needed
+    });
 
+    mlLayerRef.current.set("name", "ML Empty Spaces Layer");
+    mlLayerRef.current.setStyle(
+      new Style({
+        stroke: new Stroke({
+          color: "#22c55e",
+          width: 2,
+        }),
+        fill: new Fill({
+          color: "rgba(34, 197, 94, 0.2)", // ✅ transparent
+        }),
+      }),
+    );
     // -----------------------------
     // ADD LAYERS (ORDER MATTERS)
     // -----------------------------
@@ -494,6 +338,7 @@ export default function OpenLayerMap({
     mapObj.current.addLayer(gapLayerRef.current);
     mapObj.current.addLayer(suitableLandRef.current);
     mapObj.current.addLayer(scenerioSanitationRef.current);
+    mapObj.current.addLayer(mlLayerRef.current);
     mapObj.current.addLayer(clickMarkerLayerRef.current);
 
     // -----------------------------
@@ -504,7 +349,7 @@ export default function OpenLayerMap({
     sanitationScenerio();
 
     mapObj.current.on("click", handleMapClick);
-
+    setMapReady(true);
     // -----------------------------
     // CLEANUP
     // -----------------------------
@@ -515,10 +360,63 @@ export default function OpenLayerMap({
     };
   }, []);
 
+  useEffect(() => {
+  if (!mlBuffer?.enabled || !mapReady) return;
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch(
+        `http://192.168.1.16:5000/empty-spaces?radius=${mlBuffer.value}`
+      );
+      const data = await res.json();
+
+      drawMLPolygons(data.data);
+
+      // 👇 AUTO BUFFER CENTER
+      if (data.data.length > 0) {
+        const center = data.data[0];
+
+        runMLBuffer(
+          Number(center.centroid_x),
+          Number(center.centroid_y),
+          mlBuffer.value // meters
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchData();
+}, [mlBuffer?.value, mlBuffer?.enabled, mapReady]);
+
+const drawMLPolygons = (spaces) => {
+  if (!mlLayerRef.current) return;
+
+  const source = mlLayerRef.current.getSource();
+  source.clear();
+
+  const format = new WKT();
+
+  spaces.forEach((space) => {
+    const feature = format.readFeature(space.space_wkt, {
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
+    });
+
+    source.addFeature(feature);
+  });
+
+  console.log("Features:", source.getFeatures().length);
+
+  mlLayerRef.current.setVisible(true);
+
+  
+};
   // -----------------------------
   // LAYER FACTORY 🔥
   // -----------------------------
-  const createLayer = (style, visible = false, name) => {
+  const createLayer = (style, name, visible = false) => {
     const layer = new VectorLayer({
       source: new VectorSource(),
       style,
@@ -587,18 +485,14 @@ export default function OpenLayerMap({
         runBufferAnalysis(evt.coordinate);
       }
     } else {
+      bufferLayerRef.current.getSource().clear();
     }
   };
 
   // -----------------------------
   // SWIPE CONTROL
   // -----------------------------
-  useEffect(() => {
-    console.log(
-      "GAP FEATURES:",
-      gapLayerRef.current?.getSource()?.getFeatures().length,
-    );
-  }, [analysisLayers]);
+
   useEffect(() => {
     const layer = supplyLayerRef.current;
     const swipe = document.getElementById("swipe");
@@ -710,7 +604,7 @@ export default function OpenLayerMap({
   // -----------------------------
   useEffect(() => {
     if (!mapObj.current) return;
-    debugger;
+
     Object.values(layerRef.current).forEach((l) =>
       mapObj.current.removeLayer(l),
     );
@@ -846,7 +740,33 @@ export default function OpenLayerMap({
 
     findFeaturesInsideBuffer(extent);
   };
+const runMLBuffer = (x, y, radiusMeters) => {
+  if (!mapObj.current) return;
 
+  // 🔁 convert to map projection
+  const coordinate = transform([x, y], "EPSG:32643", "EPSG:3857");
+
+  const circleGeom = new Circle(coordinate, radiusMeters);
+
+  const aoiFeatures = aoiLayerRef.current.getSource().getFeatures();
+
+  if (!aoiFeatures.length) return;
+
+  const aoiGeometry = aoiFeatures[0].getGeometry();
+
+  // optional: check inside AOI
+  if (!aoiGeometry.intersectsCoordinate(coordinate)) {
+    console.log("Outside AOI");
+    return;
+  }
+
+  // 🔥 reuse your existing function
+  drawBufferCircle(coordinate, radiusMeters);
+
+  const extent = circleGeom.getExtent();
+
+  findFeaturesInsideBuffer(extent);
+};
   const findFeaturesInsideBuffer = (extent) => {
     if (!mapObj.current) return;
 
