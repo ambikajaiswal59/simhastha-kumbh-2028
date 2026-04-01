@@ -3,12 +3,14 @@ import { API } from "../../config/api";
 import { Switch } from "@mui/material";
 
 export default function Sidebar({
+  bufferValue,
+  setBufferValue,
   setSelectedLayers,
   setBuffer,
   setGridSize,
   setWeights,
   setAnalysisLayers,
-  analysisLayers,
+  analysisLayers, 
   showAnalysisOptions,
   bufferEnabled,
   handleBufferEnabled,
@@ -16,16 +18,17 @@ export default function Sidebar({
   const [layers, setLayers] = useState([]);
   const [selected, setSelected] = useState([{ table_name: "road_network3" }]);
   const [analysisTargetLayer, setAnalysisTargetLayer] = useState([]);
-  const [bufferValue, setBufferValue] = useState(300);
+
 
   const [accordionOpen, setAccordionOpen] = useState({
     layers: true,
     analysis: false,
+    mlLayer: false,
   });
 
-  const [gridSize, updateGridSize] = useState(50);
+  const [gridSize, setUpdateGridSize] = useState(50);
 
-  const [weightsState, updateWeights] = useState({
+  const [weightsState, setUpdateWeights] = useState({
     temple: 5,
     parking: 3,
     junction: 2,
@@ -116,7 +119,7 @@ export default function Sidebar({
   const updateWeightValue = (key, value) => {
     const updated = { ...weightsState, [key]: value };
 
-    updateWeights(updated);
+    setUpdateWeights(updated);
     setWeights(updated);
   };
   const hasSitePriority = analysisLayers.site_priority;
@@ -301,18 +304,22 @@ export default function Sidebar({
                   min="100"
                   max="500"
                   step="50"
-                  value={bufferValue}
+                  value={bufferValue.analysis.value}
                   onChange={(e) => {
                     const meters = Number(e.target.value);
-                    setBufferValue(meters);
+                    setBufferValue((prev) => ({
+                      ...prev,
+                      analysis: {
+                        ...prev.analysis,
+                        value: meters,
+                      },
+                    }));
                     setBuffer(meters / 1000);
                   }}
                   className="w-full accent-orange-400"
                 />
 
-                <div className="text-center mt-2 text-xs bg-white/10 px-2 py-1 rounded">
-                  {bufferValue} meters
-                </div>
+                <div>{bufferValue.analysis.value}  meters</div>
               </div>
 
               {/* GRID SIZE */}
@@ -326,7 +333,7 @@ export default function Sidebar({
                     <button
                       key={size}
                       onClick={() => {
-                        updateGridSize(size);
+                        setUpdateGridSize(size);
                         setGridSize(size);
                       }}
                       className={`px-3 py-1 text-xs rounded-md border transition
@@ -368,6 +375,89 @@ export default function Sidebar({
                       />
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ================= ML Layer ================= */}
+        <div>
+          <button
+            onClick={() => toggleAccordion("mlLayer")}
+            className="w-full flex justify-between items-center 
+                  bg-white/10 hover:bg-white/20 
+                  px-3 py-2 rounded-lg 
+                  text-green-300 font-semibold text-sm
+                  border border-white/10 transition"
+          >
+            <span>AI/ML Layer</span>
+            <span>{accordionOpen.mlLayer ? "▾" : "▸"}</span>
+          </button>
+
+          <div
+            className={`mt-3 overflow-hidden transition-all duration-300
+        ${
+          accordionOpen.mlLayer
+            ? "max-h-[900px] opacity-100"
+            : "max-h-0 opacity-0"
+        }`}
+          >
+            <div className="mt-3 p-4 bg-white/5 rounded-xl border border-white/10 space-y-6">
+              {/* EMPTY SPACE LAYER */}
+              <div>
+                <h4 className="text-xs uppercase text-yellow-300 mb-2">
+                  Empty Space Layer
+                </h4>
+
+                {/* BUFFER */}
+                <div className="border-t border-white/10 pt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-xs uppercase text-orange-300">
+                      Buffer Distance
+                    </h4>
+
+                    {/* <Switch
+                      checked={bufferValue.ml.enabled}
+                      onChange={() =>
+                        setBufferValue((prev) => ({
+                          ...prev,
+                          ml: {
+                            ...prev.ml,
+                            enabled: !prev.ml.enabled,
+                          },
+                        }))
+                      }
+                      size="small"
+                    /> */}
+                  </div>
+
+                  <input
+                    type="range"
+                    min="50"
+                    max="1000"
+                    step="50"
+                    value={bufferValue.ml.value}
+                    onChange={(e) => {
+                      const meters = Number(e.target.value);
+
+                      setBufferValue((prev) => ({
+                        ...prev,
+                        ml: {
+                          ...prev.ml,
+                          value: meters,
+                          enabled: true, // auto-enable when user interacts
+                        },
+                      }));
+
+
+                    }}
+                    className="w-full accent-orange-400"
+                  />
+
+                  <div className="text-center mt-2 text-xs bg-white/10 px-2 py-1 rounded">
+                    {bufferValue.ml.value} meters
+                  </div>
                 </div>
               </div>
             </div>

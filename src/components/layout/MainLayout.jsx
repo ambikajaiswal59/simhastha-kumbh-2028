@@ -29,7 +29,10 @@ export default function MainLayout() {
     site_priority: false,
   });
   const [analysisData, setAnalysisData] = useState({});
-
+  const [bufferValue, setBufferValue] = useState({
+    analysis: { enabled: false, value: 100 },
+    ml: { enabled: false, value: 100 },
+  });
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [bufferResults, setBufferResults] = useState([]);
 
@@ -245,6 +248,8 @@ export default function MainLayout() {
         <Suspense fallback={<div>Loading...</div>}>
           <div className="w-72 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
             <Sidebar
+              bufferValue={bufferValue}
+              setBufferValue={setBufferValue}
               setBuffer={setBuffer}
               setSelectedLayers={setSelectedTypes}
               analysisLayers={analysisLayers}
@@ -259,8 +264,12 @@ export default function MainLayout() {
         {/* MAP (NO SCROLL) */}
         <Suspense fallback={<div>Loading...</div>}>
           <div className="flex-1 h-full overflow-hidden">
+            
             <OpenLayerMap
+            
               buffer={buffer}
+              analysisBuffer={bufferValue.analysis}
+              mlBuffer={bufferValue.ml}
               selectedTypes={selectedTypes}
               updateAnalysis={updateAnalysis}
               setAnalysisData={setAnalysisData}
