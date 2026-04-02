@@ -23,6 +23,7 @@ import { Paper, Typography, Stack, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import LocationIcon from "../../assets/location.svg";
 import XYZ from "ol/source/XYZ";
+import omIcon from "../../assets/Icon/om.svg";
 
 
 export default function OpenLayerMap({
@@ -576,7 +577,7 @@ export default function OpenLayerMap({
   const handleMapClick = (evt) => {
 
     const [lon, lat] = toLonLat(evt.coordinate);
-    console.log("Clicked lat/lon:", { latitude: lat, longitude: lon });
+    // console.log("Clicked lat/lon:", { latitude: lat, longitude: lon });
 
     ////************************* */
     lastClickedCoordinateRef.current = evt.coordinate;
@@ -836,10 +837,10 @@ const handleCloseCoreAnalysis = () => {
   // SWIPE CONTROL
   // -----------------------------
   useEffect(() => {
-    console.log(
-      "GAP FEATURES:",
-      gapLayerRef.current?.getSource()?.getFeatures().length,
-    );
+    // console.log(
+    //   "GAP FEATURES:",
+    //   gapLayerRef.current?.getSource()?.getFeatures().length,
+    // );
   }, [analysisLayers]);
   useEffect(() => {
     const layer = supplyLayerRef.current;
@@ -990,24 +991,50 @@ const handleCloseCoreAnalysis = () => {
   // -----------------------------
   // ICONS
   // -----------------------------
-  const getIcon = (type) => {
-    switch (type) {
-      case "toilets_sanitation":
-        return "https://cdn-icons-png.flaticon.com/512/684/684908.png";
-      case "police_station":
-        return "https://cdn-icons-png.flaticon.com/512/149/149060.png";
-      case "parking_loc":
-        return "https://cdn-icons-png.flaticon.com/512/854/854878.png";
-      case "road_network3":
-        return "https://cdn-icons-png.flaticon.com/512/684/684809.png";
-      case "temple_ujjain":
-        return "https://cdn-icons-png.flaticon.com/512/3176/3176292.png";
-      case "junction":
-        return "https://cdn-icons-png.flaticon.com/512/1483/1483336.png";
-      default:
-        return "https://cdn-icons-png.flaticon.com/512/252/252025.png";
-    }
-  };
+const getIcon = (type) => {
+  switch (type) {
+    case "toilets_sanitation":
+      return "https://cdn-icons-png.flaticon.com/512/684/684908.png";
+
+    case "police_station":
+      return "https://cdn-icons-png.flaticon.com/512/149/149060.png";
+
+    case "parking_loc":
+      return "https://cdn-icons-png.flaticon.com/512/854/854878.png";
+
+    case "road_network3":
+      return "https://cdn-icons-png.flaticon.com/512/684/684809.png";
+
+    case "temple_ujjain":
+      return omIcon; // 
+
+    case "junction":
+      return "https://cdn-icons-png.flaticon.com/512/1483/1483336.png";
+
+    default:
+      return "https://cdn-icons-png.flaticon.com/512/252/252025.png";
+  }
+};
+
+
+  // const getIcon = (type) => {
+  //   switch (type) {
+  //     case "toilets_sanitation":
+  //       return "/icons/toilet.svg";
+  //     case "police_station":
+  //       return "/icons/police.svg";
+  //     case "parking_loc":
+  //       return "/icons/parking.svg";
+  //     case "road_network3":
+  //       return "/icons/road.svg";
+  //     case "temple_ujjain":
+  //       return "/icons/temple.svg";
+  //     case "junction":
+  //       return "/icons/junction.svg";
+  //     default:
+  //       return "/icons/default.svg";
+  //   }
+  // };
 
   const createLayerStyle = (type) => (f) => getStyle(f, type);
   const drawBufferCircle = (coordinate, bufferDistance) => {
@@ -1483,15 +1510,3 @@ const handleCloseCoreAnalysis = () => {
     </div>
   );
 }
-/**
- 
- 
- curl --location 'https://mlinfomap.biz/ujjain-api/v1/get_feature_count_avg_distance' \
---header 'Content-Type: application/json' \
---data '{
-  "tableName":"toilets_sanitation",
-  "latitude":"23.182534345746117",
-  "longitude":"75.76915883991246",
-  "bufferRadius":"300"
-}'
- */

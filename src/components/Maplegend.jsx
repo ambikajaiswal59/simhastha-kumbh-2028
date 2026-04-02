@@ -1,4 +1,5 @@
 import TenSeat from "../assets/10seat.png";
+import Om from "../assets/Icon/om.svg"
 
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
@@ -22,7 +23,7 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
     temple_ujjain: {
       label: "Temple",
-      icon: "https://api.iconify.design/mdi/temple-hindu.svg?color=orange",
+      icon: Om,
     },
 
     junction: {
