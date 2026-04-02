@@ -21,6 +21,8 @@ export default function AnalysisPanel({
     road_network3: "Road Network",
     police_station: "Police Station",
     parking_loc: "Parking Location",
+    temple_ujjain: "Temple Ujjain",
+    junction: "Junction",
   };
 
   const IGNORE_KEYS = new Set([
