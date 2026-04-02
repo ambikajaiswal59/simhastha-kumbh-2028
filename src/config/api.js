@@ -12,4 +12,8 @@ export const API = {
   aoi: `${API_URL}/aoi_layer`,
   suitableLand: `${API_URL}/suitable_land`,
   sanitation: `${API_URL}/santitation_scenario`,
+  emptySpaces: (radius) => `${API_URL}/empty-spaces?radius=${radius}`,
+
+  bottlenecks: (radius, zone) =>
+    `${API_URL}/bottlenecks?radius=${radius}&zone=${zone}`,
 };

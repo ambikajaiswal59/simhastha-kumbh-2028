@@ -27,6 +27,8 @@ export default function MainLayout() {
     gap: false,
     suitable_land: false,
     site_priority: false,
+    emptySpace: false,
+    bottleneck: false,
   });
   const [analysisData, setAnalysisData] = useState({});
   const [bufferValue, setBufferValue] = useState({
@@ -35,7 +37,7 @@ export default function MainLayout() {
   });
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [bufferResults, setBufferResults] = useState([]);
-
+  const [bottleNeckZone, setBottleNeckZone] = useState("ALL");
   const [toiletSheet, setToiletSheet] = useState("");
   const [proximity, setProximity] = useState([]);
   const bufferEnabledRef = useRef(false);
@@ -249,6 +251,8 @@ export default function MainLayout() {
           <div className="w-72 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
             <Sidebar
               bufferValue={bufferValue}
+              bottleneckZone={bottleNeckZone}
+              setBottleneckZone={setBottleNeckZone}
               setBufferValue={setBufferValue}
               setBuffer={setBuffer}
               setSelectedLayers={setSelectedTypes}
@@ -264,11 +268,10 @@ export default function MainLayout() {
         {/* MAP (NO SCROLL) */}
         <Suspense fallback={<div>Loading...</div>}>
           <div className="flex-1 h-full overflow-hidden">
-            
             <OpenLayerMap
-            
               buffer={buffer}
               analysisBuffer={bufferValue.analysis}
+              bottleneckZone={bottleNeckZone}
               mlBuffer={bufferValue.ml}
               selectedTypes={selectedTypes}
               updateAnalysis={updateAnalysis}

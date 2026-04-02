@@ -1,4 +1,5 @@
 import TenSeat from "../assets/10seat.png";
+import OmIcon from "../assets/Icon/om.svg";
 
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
@@ -21,7 +22,7 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
     temple_ujjain: {
       label: "Temple Ujjain",
-      icon: "https://cdn-icons-png.flaticon.com/512/3176/3176292.png",
+     icon: OmIcon,
     },
 
     junction: {
