@@ -202,7 +202,7 @@ const SuitableLandForm = ({
           ))}
         </Select> */}
       </FormControl>
-      <FormControl fullWidth size="small">
+      {/* <FormControl fullWidth size="small">
         <Button
           onClick={handleToiletAnalysis}
           variant="contained"
@@ -210,6 +210,41 @@ const SuitableLandForm = ({
         >
           Analyse
         </Button>
+      </FormControl> */}
+      <FormControl fullWidth size="small">
+        <div className="w-full space-y-2">
+          <Button
+            onClick={handleToiletAnalysis}
+            variant="contained"
+            color="warning"
+            fullWidth
+          >
+            Analyse
+          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={() =>
+                window.dispatchEvent(new Event("toggle-site-priority-pause"))
+              }
+              variant="outlined"
+              sx={{ flex: 1, color: "white", borderColor: "white" }}
+            >
+              Pause
+            </Button>
+
+            <Button
+              onClick={() =>
+                window.dispatchEvent(new Event("clear-site-priority"))
+              }
+              variant="outlined"
+              color="error"
+              sx={{ flex: 1 }}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
       </FormControl>
     </Paper>
   );

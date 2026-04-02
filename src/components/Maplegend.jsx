@@ -12,21 +12,22 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
     },
     parking_loc: {
       label: "Parking",
-      icon: "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+      icon: "https://api.iconify.design/mdi/parking.svg?color=blue",
     },
+
     road_network3: {
       label: "Road",
-      icon: "https://cdn-icons-png.flaticon.com/512/684/684809.png",
+      icon: "https://api.iconify.design/mdi/vector-polyline.svg?color=red",
     },
 
     temple_ujjain: {
-      label: "Temple Ujjain",
-      icon: "https://cdn-icons-png.flaticon.com/512/3176/3176292.png",
+      label: "Temple",
+      icon: "https://api.iconify.design/mdi/temple-hindu.svg?color=orange",
     },
 
     junction: {
       label: "Junctions",
-      icon: "https://cdn-icons-png.flaticon.com/512/1483/1483336.png",
+      icon: "https://api.iconify.design/mdi/vector-intersection.svg?color=purple",
     },
   };
 

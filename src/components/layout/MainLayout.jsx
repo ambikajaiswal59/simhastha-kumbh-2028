@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import Header from "./Header";
 import { useMapContext } from "../../context/MapContext";
 import { Style, Icon } from "ol/style";
@@ -37,6 +37,13 @@ export default function MainLayout() {
   const [proximity, setProximity] = useState([]);
   const bufferEnabledRef = useRef(false);
   const [bufferEnabled, setBufferEnabled] = useState(false);
+  /*****************************************/
+  const sitePriorityTimerRef = useRef(null);
+const sitePriorityPausedRef = useRef(false);
+const sitePriorityFeaturesRef = useRef([]);
+  const sitePriorityIndexRef = useRef(0);
+  /***************************************/
+
 
   ///****************************************** */
   const [selectedCoordinate, setSelectedCoordinate] = useState(null);
@@ -79,59 +86,177 @@ export default function MainLayout() {
     highlightLayerRef.current = highlightLayer;
   };
 
+  // const handleToiletAnalysis = () => {
+
+
+
+  //   setAnalysingSitePriority(true);
+  //   const selectedFeatures = runAnalysis(proximity, toiletSheet);
+
+  //   setTimeout(() => {
+  //     highlightFeatures(selectedFeatures);
+  //   }, 5000);
+  // };
+
+  
+  //modified//
   const handleToiletAnalysis = () => {
-    setAnalysingSitePriority(true);
-    const selectedFeatures = runAnalysis(proximity, toiletSheet);
+  clearTimeout(sitePriorityTimerRef.current);
+  sitePriorityPausedRef.current = false;
+  sitePriorityIndexRef.current = 0;
 
-    setTimeout(() => {
-      highlightFeatures(selectedFeatures);
-    }, 5000);
+  setAnalysingSitePriority(true);
+
+  const selectedFeatures = runAnalysis(proximity, toiletSheet);
+  sitePriorityFeaturesRef.current = selectedFeatures.map((f) => f.clone());
+
+  if (highlightLayerRef.current) {
+    highlightLayerRef.current.getSource().clear();
+  }
+
+  sitePriorityTimerRef.current = setTimeout(() => {
+    highlightFeatures();
+  }, 5000);
+};
+
+  // const highlightFeatures = (features) => {
+  //   createHighlightLayer();
+
+  //   const source = highlightLayerRef.current.getSource();
+  //   source.clear();
+
+  //   const clonedFeatures = features.map((f) => f.clone());
+
+  //   let index = 0;
+
+  //   const addNextFeature = () => {
+  //     if (index >= clonedFeatures.length) {
+  //       setAnalysingSitePriority(false);
+
+  //       setAnalysisLayers((prev) => ({
+  //         ...prev,
+  //         site_priority: !prev.site_priority,
+  //       }));
+
+  //       return;
+  //     }
+
+  //     const feature = clonedFeatures[index];
+
+  //     // ✅ Add feature
+  //     source.addFeature(feature);
+
+  //     // ✅ Zoom to that feature
+  //     const geometry = feature.getGeometry();
+  //     const extent = geometry.getExtent();
+
+  //     mapObj.current.getView().fit(extent, {
+  //       duration: 400, // smooth animation
+  //       padding: [80, 80, 80, 80],
+  //       maxZoom: 18, // prevent too much zoom
+  //     });
+
+  //     index++;
+
+  //     setTimeout(addNextFeature, 2000);
+  //   };
+
+  //   addNextFeature();
+  // };
+
+
+  const highlightFeatures = () => {
+  createHighlightLayer();
+
+  const source = highlightLayerRef.current.getSource();
+
+  const addNextFeature = () => {
+    if (sitePriorityPausedRef.current) return;
+
+    if (
+      sitePriorityIndexRef.current >= sitePriorityFeaturesRef.current.length
+    ) {
+      setAnalysingSitePriority(false);
+      sitePriorityTimerRef.current = null;
+
+      setAnalysisLayers((prev) => ({
+        ...prev,
+        site_priority: !prev.site_priority,
+      }));
+
+      return;
+    }
+
+    const feature =
+      sitePriorityFeaturesRef.current[sitePriorityIndexRef.current];
+
+    source.addFeature(feature);
+
+    const geometry = feature.getGeometry();
+    const extent = geometry.getExtent();
+
+    mapObj.current.getView().fit(extent, {
+      duration: 400,
+      padding: [80, 80, 80, 80],
+      maxZoom: 18,
+    });
+
+    sitePriorityIndexRef.current += 1;
+    sitePriorityTimerRef.current = setTimeout(addNextFeature, 2000);
   };
 
-  const highlightFeatures = (features) => {
-    createHighlightLayer();
+  addNextFeature();
+  };
+  /********************************** */
+  const handlePauseSitePriority = () => {
+    if (!sitePriorityFeaturesRef.current.length) return;
 
-    const source = highlightLayerRef.current.getSource();
-    source.clear();
+    if (sitePriorityPausedRef.current) {
+      sitePriorityPausedRef.current = false;
+      setAnalysingSitePriority(true);
+      highlightFeatures();
+      return;
+    }
 
-    const clonedFeatures = features.map((f) => f.clone());
+    sitePriorityPausedRef.current = true;
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityTimerRef.current = null;
+    setAnalysingSitePriority(false);
+  };
 
-    let index = 0;
+  const handleClearSitePriority = () => {
+    sitePriorityPausedRef.current = false;
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityTimerRef.current = null;
+    sitePriorityFeaturesRef.current = [];
+    sitePriorityIndexRef.current = 0;
 
-    const addNextFeature = () => {
-      if (index >= clonedFeatures.length) {
-        setAnalysingSitePriority(false);
+    setAnalysingSitePriority(false);
 
-        setAnalysisLayers((prev) => ({
-          ...prev,
-          site_priority: !prev.site_priority,
-        }));
+    if (highlightLayerRef.current) {
+      highlightLayerRef.current.getSource().clear();
+    }
+  };
 
-        return;
-      }
+  useEffect(() => {
+    window.addEventListener(
+      "toggle-site-priority-pause",
+      handlePauseSitePriority,
+    );
+    window.addEventListener("clear-site-priority", handleClearSitePriority);
 
-      const feature = clonedFeatures[index];
-
-      // ✅ Add feature
-      source.addFeature(feature);
-
-      // ✅ Zoom to that feature
-      const geometry = feature.getGeometry();
-      const extent = geometry.getExtent();
-
-      mapObj.current.getView().fit(extent, {
-        duration: 400, // smooth animation
-        padding: [80, 80, 80, 80],
-        maxZoom: 18, // prevent too much zoom
-      });
-
-      index++;
-
-      setTimeout(addNextFeature, 2000);
+    return () => {
+      window.removeEventListener(
+        "toggle-site-priority-pause",
+        handlePauseSitePriority,
+      );
+      window.removeEventListener(
+        "clear-site-priority",
+        handleClearSitePriority,
+      );
     };
-
-    addNextFeature();
-  };
+  }, []);
+/****************************************** */
 
   const highlightStyle = (feature) => {
     const geometry = feature.getGeometry();

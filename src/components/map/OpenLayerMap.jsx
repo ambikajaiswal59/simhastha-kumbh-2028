@@ -454,7 +454,7 @@ export default function OpenLayerMap({
     // { satelliteLaye----**}
     satelliteLayerRef.current = new TileLayer({
       source: new XYZ({
-        url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    url: "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
         crossOrigin: "anonymous",
       }),
       visible: false,
@@ -782,7 +782,7 @@ const drawCoreAnalysisCircles = () => {
         stroke: new Stroke({
           color: circleColors[step - 1].stroke,
           width: step === 4 ? 3 : 2,
-          lineDash: [6, 6],
+          
         }),
         fill: new Fill({
           color: circleColors[step - 1].fill,
@@ -807,12 +807,26 @@ const drawCoreAnalysisCircles = () => {
    selectedRef.current.forEach((type) => {
      fetchCoreAnalysis(type, lat, lon);
    });
- };
+    };
+const handleCloseCoreAnalysis = () => {
+  const coordinate = lastClickedCoordinateRef.current;
+
+  if (!coordinate || !bufferLayerRef.current) return;
+
+  if (bufferRef.current > 0) {
+    runBufferAnalysis(coordinate);
+  } else {
+    bufferLayerRef.current.getSource().clear();
+  }
+};
 
 
     window.addEventListener("run-core-analysis", handleCoreAnalysis);
+    window.addEventListener("close-core-analysis", handleCloseCoreAnalysis);
+
 
     return () => {
+      window.removeEventListener("close-core-analysis",handleCloseCoreAnalysis,);
       window.removeEventListener("run-core-analysis", handleCoreAnalysis);
     };
   }, []);
