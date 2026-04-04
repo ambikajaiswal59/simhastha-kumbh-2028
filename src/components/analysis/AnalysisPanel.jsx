@@ -42,6 +42,7 @@ export default function AnalysisPanel({
     "upd_date",
     "upd_time",
   ]);
+  console.log("RIGHT PANEL DATA:", selectedFeature);
 
   useEffect(() => {
     if (analysisLayers.suitable_land) {
@@ -50,7 +51,10 @@ export default function AnalysisPanel({
       setShowLandSuitableDropdown(false);
     }
   }, [analysisLayers]);
+  const layer = selectedFeature?.layer?.toLowerCase() || "";
 
+  console.log("Layer:", layer); // 👈 DEBUG HERE
+  console.log("Feature:", selectedFeature);
   return (
     <div className="w-80 h-full bg-gradient-to-b from-[#0f2a44] to-[#133b5c] p-4 border-l overflow-y-auto">
       {/* HEADER */}
@@ -157,6 +161,158 @@ export default function AnalysisPanel({
             </div>
           );
         })}
+
+        {/* ================= FEATURE CARD ================= */}
+        {selectedFeature &&
+          (() => {
+            const layer = selectedFeature?.layer?.toLowerCase() || "";
+
+            return (
+              <div className="mb-4 p-4 rounded-xl bg-white/10 border border-white/20">
+                {/* TITLE */}
+                <h3 className="text-sm font-bold text-yellow-300 mb-3">
+                  {layer.includes("bottleneck")
+                    ? " Bottleneck Details"
+                    : layer.includes("ml")
+                      ? " Empty Space"
+                      : "Feature Details"}
+                </h3>
+
+                {/* ================= BOTTLENECK ================= */}
+                {layer.includes("bottleneck") &&
+                  (() => {
+                    debugger;
+                    const risk = selectedFeature?.risk_class || "LOW";
+
+                    return (
+                      <div className="space-y-2 text-xs text-white">
+                        <div className="flex justify-between items-center">
+                          <span>Risk Level</span>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-semibold
+                  ${
+                    risk === "CRITICAL"
+                      ? "bg-red-500"
+                      : risk === "HIGH"
+                        ? "bg-orange-400"
+                        : "bg-yellow-400"
+                  }`}
+                          >
+                            {risk}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Risk Score</span>
+                          <span>{selectedFeature?.risk_score || "N/A"}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Crowd Level</span>
+                          <span>{selectedFeature?.crowd_lvl || "N/A"}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Junction Type</span>
+                          <span>{selectedFeature?.junc_type || "N/A"}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Road Connections</span>
+                          <span>{selectedFeature?.roads_conn ?? "N/A"}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Zone</span>
+                          <span>{selectedFeature?.zone || "N/A"}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Distance</span>
+                          <span>
+                            {selectedFeature?.distance_from_temple || "0"} m
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Signal</span>
+                          <span>{selectedFeature?.signal ? "Yes" : "No"}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Barricade</span>
+                          <span>
+                            {selectedFeature?.barricade ? "Yes" : "No"}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Control</span>
+                          <span>{selectedFeature?.control || "NA"}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                {/* ================= EMPTY SPACE ================= */}
+                {layer.includes("ml") &&
+                  (() => {
+                    const area = Number(selectedFeature?.area_sqm || 0);
+                    const occupancy = Number(
+                      selectedFeature?.occupied_pct || 0,
+                    );
+                    const distance = Number(
+                      selectedFeature?.distance_from_temple || 0,
+                    );
+
+
+                    return (
+                      <div className="space-y-3 text-xs text-white">
+                        {/* <div className="flex justify-between">
+                          <span>Type</span>
+                          <span className="text-green-300 font-semibold">
+                            Empty Space
+                          </span>
+                        </div> */}
+
+                        <div className="flex justify-between">
+                          <span>Area</span>
+                          <span>{area.toFixed(0)} sqm</span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span>Occupancy</span>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-semibold
+                              ${
+                                occupancy < 20
+                                  ? "bg-green-500"
+                                  : occupancy < 50
+                                    ? "bg-yellow-400"
+                                    : "bg-red-500"
+                              }`}
+                          >
+                            {occupancy.toFixed(1)} %
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Distance</span>
+                          <span>{distance} m</span>
+                        </div>
+
+                        {/* <div className="flex justify-between text-gray-400">
+                          <span>Location</span>
+                          <span>
+                            {Math.round(x)}, {Math.round(y)}
+                          </span>
+                        </div> */}
+                      </div>
+                    );
+                  })()}
+              </div>
+            );
+          })()}
       </div>
     </div>
   );

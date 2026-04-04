@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Header from "./Header";
 import { useMapContext } from "../../context/MapContext";
 import { Style, Icon } from "ol/style";
@@ -77,7 +77,21 @@ export default function MainLayout() {
     mapObj.current.addLayer(highlightLayer);
     highlightLayerRef.current = highlightLayer;
   };
+  useEffect(() => {
+    if (!selectedFeature) return;
 
+    const layer = selectedFeature.layer?.toLowerCase() || "";
+
+    // ✅ if empty space unchecked → remove its card
+    if (layer.includes("ml") && !analysisLayers.emptySpace) {
+      setSelectedFeature(null);
+    }
+
+    // ✅ if bottleneck unchecked → remove its card
+    if (layer.includes("bottleneck") && !analysisLayers.bottleneck) {
+      setSelectedFeature(null);
+    }
+  }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
   const handleToiletAnalysis = () => {
     setAnalysingSitePriority(true);
     const selectedFeatures = runAnalysis(proximity, toiletSheet);
