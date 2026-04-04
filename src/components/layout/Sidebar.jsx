@@ -156,6 +156,7 @@ export default function Sidebar({
                 <div key={layer.layer_id}>
                   {/* MAIN CHECKBOX */}
                   <label
+                    htmlFor={layer.layer_id}
                     className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer text-sm
                 ${
                   isSelected
@@ -165,6 +166,7 @@ export default function Sidebar({
                   >
                     <div className="flex items-center gap-2">
                       <input
+                        id={layer.layer_id}
                         type="checkbox"
                         checked={!!isSelected}
                         onChange={() => handleSelect(layer)}
