@@ -3,7 +3,6 @@ import SuitableLandForm from "../form/SuitableLandForm";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
-
 export default function AnalysisPanel({
   buffer,
   selectedTypes = [],
@@ -26,30 +25,27 @@ export default function AnalysisPanel({
     police_station: "Police Station",
     parking_loc: "Parking",
     temple_ujjain: "Temple",
-    
   };
- const [openCoreZones, setOpenCoreZones] = useState({});
- const [loadingCoreZones, setLoadingCoreZones] = useState({});
+  const [openCoreZones, setOpenCoreZones] = useState({});
+  const [loadingCoreZones, setLoadingCoreZones] = useState({});
 
-
-  const IGNORE_KEYS = new Set([
-    "temple",
-    "parking",
-    "junction",
-    "hotel",
-    "building",
-    "n",
-    "id",
-    "id_2",
-    "road_name",
-    "priority",
-    "road_id",
-    "access",
-    "condition",
-    "upd_date",
-    "upd_time",
-  ]);
-
+  // const IGNORE_KEYS = new Set([
+  //   "temple",
+  //   "parking",
+  //   "junction",
+  //   "hotel",
+  //   "building",
+  //   "n",
+  //   "id",
+  //   "id_2",
+  //   "road_name",
+  //   "priority",
+  //   "road_id",
+  //   "access",
+  //   "condition",
+  //   "upd_date",
+  //   "upd_time",
+  // ]);
 
   useEffect(() => {
     if (analysisLayers.suitable_land) {
@@ -58,6 +54,7 @@ export default function AnalysisPanel({
       setShowLandSuitableDropdown(false);
     }
   }, [analysisLayers]);
+
   const getZoneHeading = (zone) => {
     const totalMeters = Math.round(buffer * 1000);
     const zoneMeters = Math.round((totalMeters / 4) * zone);
@@ -70,90 +67,6 @@ export default function AnalysisPanel({
       <h2 className="text-lg font-bold mb-4 text-white sticky top-0 bg-[#133b5c] py-2 z-10">
         Analysis Results
       </h2>
-
-      {/* {selectedTypes?.includes("toilets_sanitation") && (
-        <div className="flex flex-col gap-2 mb-4">
-          {[
-            { key: "demand", label: "Demand Analysis" },
-            { key: "supply", label: "Supply Gap Analysis" },
-          ].map((btn) => {
-            const isDisabled = btn.key === "supply" && !analysisLayers.demand;
-
-            return (
-              <button
-                key={btn.key}
-                disabled={isDisabled}
-                onClick={() => {
-                  if (isDisabled) return;
-
-                  if (btn.key === "demand" && analysisLayers.demand) {
-                    setShowLandSuitableDropdown(false);
-                  }
-
-                  if (btn.key === "supply" && analysisLayers.supply) {
-                    setShowLandSuitableDropdown(false);
-                  }
-
-                  setAnalysisLayers((prev) => {
-                    if (btn.key === "demand") {
-                      const nextDemand = !prev.demand;
-
-                      return {
-                        ...prev,
-                        demand: nextDemand,
-                        supply: nextDemand ? prev.supply : false,
-                        suitable_land: nextDemand ? prev.suitable_land : false,
-                        site_priority: nextDemand ? prev.site_priority : false,
-                      };
-                    }
-
-                    const nextSupply = !prev.supply;
-
-                    return {
-                      ...prev,
-                      supply: nextSupply,
-                      suitable_land: nextSupply ? prev.suitable_land : false,
-                      site_priority: nextSupply ? prev.site_priority : false,
-                    };
-                  });
-
-                  setShowAnalysisOptions(true);
-                }}
-                className={`px-3 py-2 text-sm rounded-md border border-white transition-all duration-200
-            ${
-              isDisabled
-                ? "bg-[#133b5c] text-gray-500 opacity-60 cursor-not-allowed"
-                : analysisLayers[btn.key]
-                  ? "bg-green-600 text-white"
-                  : "bg-[#133b5c] text-gray-200 hover:bg-[#0f2a44]"
-            }`}
-              >
-                {btn.label}
-              </button>
-            );
-          })}
-
-          <button
-            disabled={!analysisLayers.supply}
-            onClick={() => {
-              if (!analysisLayers.supply) return;
-
-              setShowAnalysisOptions(true);
-              setShowLandSuitableDropdown((prev) => !prev);
-            }}
-            className={`px-3 py-2 text-sm rounded-md border border-white transition-all duration-200
-        ${
-          !analysisLayers.supply
-            ? "bg-[#133b5c] text-gray-500 opacity-60 cursor-not-allowed"
-            : showLandSuitableDropdown
-              ? "bg-green-600 text-white"
-              : "bg-[#133b5c] text-gray-200 hover:bg-[#0f2a44]"
-        }`}
-          >
-            Site Priority
-          </button>
-        </div>
-      )} */}
 
       {selectedTypes?.includes("toilets_sanitation") && (
         <div className="flex flex-col gap-2 mb-4 ">
@@ -349,7 +262,151 @@ export default function AnalysisPanel({
           </button>
         </div>
       )}
+      {selectedFeature &&
+        (() => {
+          const layer = selectedFeature?.layer?.toLowerCase() || "";
 
+          return (
+            <div className="mb-4 p-4 rounded-xl bg-white/10 border border-white/20">
+              {/* TITLE */}
+              {(layer.includes("bottleneck") || layer.includes("ml")) && (
+                <h3 className="text-sm font-bold text-yellow-300 mb-3">
+                  {layer.includes("bottleneck")
+                    ? "Bottleneck Details"
+                    : "Empty Space"}
+                </h3>
+              )}
+
+              {/* ================= BOTTLENECK ================= */}
+              {layer.includes("bottleneck") &&
+                (() => {
+                  debugger;
+                  const risk = selectedFeature?.risk_class || "LOW";
+
+                  return (
+                    <div className="space-y-2 text-xs text-white">
+                      <div className="flex justify-between items-center">
+                        <span>Risk Level</span>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-semibold
+                  ${
+                    risk === "CRITICAL"
+                      ? "bg-red-500"
+                      : risk === "HIGH"
+                        ? "bg-orange-400"
+                        : "bg-yellow-400"
+                  }`}
+                        >
+                          {risk}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Risk Score</span>
+                        <span>{selectedFeature?.risk_score || "N/A"}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Crowd Level</span>
+                        <span>{selectedFeature?.crowd_lvl || "N/A"}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Junction Type</span>
+                        <span>{selectedFeature?.junc_type || "N/A"}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Road Connections</span>
+                        <span>{selectedFeature?.roads_conn ?? "N/A"}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Zone</span>
+                        <span>{selectedFeature?.zone || "N/A"}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Distance</span>
+                        <span>
+                          {selectedFeature?.distance_from_temple || "0"} m
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Signal</span>
+                        <span>{selectedFeature?.signal ? "Yes" : "No"}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Barricade</span>
+                        <span>{selectedFeature?.barricade ? "Yes" : "No"}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Control</span>
+                        <span>{selectedFeature?.control || "NA"}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+              {/* ================= EMPTY SPACE ================= */}
+              {layer.includes("ml") &&
+                (() => {
+                  const area = Number(selectedFeature?.area_sqm || 0);
+                  const occupancy = Number(selectedFeature?.occupied_pct || 0);
+                  const distance = Number(
+                    selectedFeature?.distance_from_temple || 0,
+                  );
+
+                  return (
+                    <div className="space-y-3 text-xs text-white">
+                      {/* <div className="flex justify-between">
+                          <span>Type</span>
+                          <span className="text-green-300 font-semibold">
+                            Empty Space
+                          </span>
+                        </div> */}
+
+                      <div className="flex justify-between">
+                        <span>Area</span>
+                        <span>{area.toFixed(0)} sqm</span>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span>Occupancy</span>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-semibold
+                              ${
+                                occupancy < 20
+                                  ? "bg-green-500"
+                                  : occupancy < 50
+                                    ? "bg-yellow-400"
+                                    : "bg-red-500"
+                              }`}
+                        >
+                          {occupancy.toFixed(1)} %
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span>Distance</span>
+                        <span>{distance} m</span>
+                      </div>
+
+                      {/* <div className="flex justify-between text-gray-400">
+                          <span>Location</span>
+                          <span>
+                            {Math.round(x)}, {Math.round(y)}
+                          </span>
+                        </div> */}
+                    </div>
+                  );
+                })()}
+            </div>
+          );
+        })()}
       {/* FORM */}
       <div className="space-y-4">
         {showLandSuitableDropdown && (

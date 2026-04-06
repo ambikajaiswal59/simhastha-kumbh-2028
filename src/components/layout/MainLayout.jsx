@@ -6,6 +6,7 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import TenSeat from "../../assets/10seat.png";
 import { lazy, Suspense } from "react";
+import { set } from "ol/transform";
 
 const OpenLayerMap = lazy(() => import("../map/OpenLayerMap"));
 const AnalysisPanel = lazy(() => import("../analysis/AnalysisPanel"));
@@ -27,29 +28,28 @@ export default function MainLayout() {
     gap: false,
     suitable_land: false,
     site_priority: false,
+    emptySpace: false,
+    bottleneck: false,
   });
   const [analysisData, setAnalysisData] = useState({});
+  const [bufferValue, setBufferValue] = useState({
+    analysis: { enabled: false, value: 100 },
+    ml: { enabled: false, value: 100 },
+  });
 
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [bufferResults, setBufferResults] = useState([]);
-
+  const [bottleNeckZone, setBottleNeckZone] = useState("ALL");
   const [toiletSheet, setToiletSheet] = useState("");
   const [proximity, setProximity] = useState([]);
-  const bufferEnabledRef = useRef(false);
+  const bufferEnabledRef = useRef(true);
   const [bufferEnabled, setBufferEnabled] = useState(false);
   /*****************************************/
   const sitePriorityTimerRef = useRef(null);
-const sitePriorityPausedRef = useRef(false);
-const sitePriorityFeaturesRef = useRef([]);
+  const sitePriorityPausedRef = useRef(false);
+  const sitePriorityFeaturesRef = useRef([]);
   const sitePriorityIndexRef = useRef(0);
   /***************************************/
-
-
-  ///****************************************** */
-  const [selectedCoordinate, setSelectedCoordinate] = useState(null);
-  const [coreAnalysisRequest, setCoreAnalysisRequest] = useState(0);
-  /////////*************************************** */
-
 
   // Land Suaitablity Dropdown state
   const [showLandSuitableDropdown, setShowLandSuitableDropdown] =
@@ -72,6 +72,21 @@ const sitePriorityFeaturesRef = useRef([]);
     electric: "d_electric",
     river: "d_river",
   };
+  useEffect(() => {
+    if (!selectedFeature) return;
+
+    const layer = selectedFeature.layer?.toLowerCase() || "";
+
+    // ✅ if empty space unchecked → remove its card
+    if (layer.includes("ml") && !analysisLayers.emptySpace) {
+      setSelectedFeature(null);
+    }
+
+    // ✅ if bottleneck unchecked → remove its card
+    if (layer.includes("bottleneck") && !analysisLayers.bottleneck) {
+      setSelectedFeature(null);
+    }
+  }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
 
   const createHighlightLayer = () => {
     if (highlightLayerRef.current) return;
@@ -86,126 +101,67 @@ const sitePriorityFeaturesRef = useRef([]);
     highlightLayerRef.current = highlightLayer;
   };
 
-  // const handleToiletAnalysis = () => {
-
-
-
-  //   setAnalysingSitePriority(true);
-  //   const selectedFeatures = runAnalysis(proximity, toiletSheet);
-
-  //   setTimeout(() => {
-  //     highlightFeatures(selectedFeatures);
-  //   }, 5000);
-  // };
-
-  
   //modified//
   const handleToiletAnalysis = () => {
-  clearTimeout(sitePriorityTimerRef.current);
-  sitePriorityPausedRef.current = false;
-  sitePriorityIndexRef.current = 0;
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityPausedRef.current = false;
+    sitePriorityIndexRef.current = 0;
 
-  setAnalysingSitePriority(true);
+    setAnalysingSitePriority(true);
 
-  const selectedFeatures = runAnalysis(proximity, toiletSheet);
-  sitePriorityFeaturesRef.current = selectedFeatures.map((f) => f.clone());
+    const selectedFeatures = runAnalysis(proximity, toiletSheet);
+    sitePriorityFeaturesRef.current = selectedFeatures.map((f) => f.clone());
 
-  if (highlightLayerRef.current) {
-    highlightLayerRef.current.getSource().clear();
-  }
-
-  sitePriorityTimerRef.current = setTimeout(() => {
-    highlightFeatures();
-  }, 5000);
-};
-
-  // const highlightFeatures = (features) => {
-  //   createHighlightLayer();
-
-  //   const source = highlightLayerRef.current.getSource();
-  //   source.clear();
-
-  //   const clonedFeatures = features.map((f) => f.clone());
-
-  //   let index = 0;
-
-  //   const addNextFeature = () => {
-  //     if (index >= clonedFeatures.length) {
-  //       setAnalysingSitePriority(false);
-
-  //       setAnalysisLayers((prev) => ({
-  //         ...prev,
-  //         site_priority: !prev.site_priority,
-  //       }));
-
-  //       return;
-  //     }
-
-  //     const feature = clonedFeatures[index];
-
-  //     // ✅ Add feature
-  //     source.addFeature(feature);
-
-  //     // ✅ Zoom to that feature
-  //     const geometry = feature.getGeometry();
-  //     const extent = geometry.getExtent();
-
-  //     mapObj.current.getView().fit(extent, {
-  //       duration: 400, // smooth animation
-  //       padding: [80, 80, 80, 80],
-  //       maxZoom: 18, // prevent too much zoom
-  //     });
-
-  //     index++;
-
-  //     setTimeout(addNextFeature, 2000);
-  //   };
-
-  //   addNextFeature();
-  // };
-
-
-  const highlightFeatures = () => {
-  createHighlightLayer();
-
-  const source = highlightLayerRef.current.getSource();
-
-  const addNextFeature = () => {
-    if (sitePriorityPausedRef.current) return;
-
-    if (
-      sitePriorityIndexRef.current >= sitePriorityFeaturesRef.current.length
-    ) {
-      setAnalysingSitePriority(false);
-      sitePriorityTimerRef.current = null;
-
-      setAnalysisLayers((prev) => ({
-        ...prev,
-        site_priority: !prev.site_priority,
-      }));
-
-      return;
+    if (highlightLayerRef.current) {
+      highlightLayerRef.current.getSource().clear();
     }
 
-    const feature =
-      sitePriorityFeaturesRef.current[sitePriorityIndexRef.current];
-
-    source.addFeature(feature);
-
-    const geometry = feature.getGeometry();
-    const extent = geometry.getExtent();
-
-    mapObj.current.getView().fit(extent, {
-      duration: 400,
-      padding: [80, 80, 80, 80],
-      maxZoom: 18,
-    });
-
-    sitePriorityIndexRef.current += 1;
-    sitePriorityTimerRef.current = setTimeout(addNextFeature, 2000);
+    sitePriorityTimerRef.current = setTimeout(() => {
+      highlightFeatures();
+    }, 5000);
   };
 
-  addNextFeature();
+  const highlightFeatures = () => {
+    createHighlightLayer();
+
+    const source = highlightLayerRef.current.getSource();
+
+    const addNextFeature = () => {
+      if (sitePriorityPausedRef.current) return;
+
+      if (
+        sitePriorityIndexRef.current >= sitePriorityFeaturesRef.current.length
+      ) {
+        setAnalysingSitePriority(false);
+        sitePriorityTimerRef.current = null;
+
+        setAnalysisLayers((prev) => ({
+          ...prev,
+          site_priority: !prev.site_priority,
+        }));
+
+        return;
+      }
+
+      const feature =
+        sitePriorityFeaturesRef.current[sitePriorityIndexRef.current];
+
+      source.addFeature(feature);
+
+      const geometry = feature.getGeometry();
+      const extent = geometry.getExtent();
+
+      mapObj.current.getView().fit(extent, {
+        duration: 400,
+        padding: [80, 80, 80, 80],
+        maxZoom: 18,
+      });
+
+      sitePriorityIndexRef.current += 1;
+      sitePriorityTimerRef.current = setTimeout(addNextFeature, 2000);
+    };
+
+    addNextFeature();
   };
   /********************************** */
   const handlePauseSitePriority = () => {
@@ -256,7 +212,7 @@ const sitePriorityFeaturesRef = useRef([]);
       );
     };
   }, []);
-/****************************************** */
+  /****************************************** */
 
   const highlightStyle = (feature) => {
     const geometry = feature.getGeometry();
@@ -356,18 +312,13 @@ const sitePriorityFeaturesRef = useRef([]);
     return selectedFeatures;
   };
 
-  const handleBufferEnabled = () => {
-    setBufferEnabled((prev) => {
-      bufferEnabledRef.current = !prev; // keep ref in sync
-      return !prev;
-    });
+  const handleBufferEnabled = (mode) => {
+    if (mode === "analysis") {
+      bufferEnabledRef.current = true;
+    } else if (mode === "ml") {
+      bufferEnabledRef.current = false;
+    }
   };
-  //*** *********************/
-  const handleCoreAnalysis = () => {
-    if (!selectedCoordinate) return;
-    setCoreAnalysisRequest((prev) => prev + 1);
-  };
-////************************* */
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -382,6 +333,10 @@ const sitePriorityFeaturesRef = useRef([]);
         <Suspense fallback={<div>Loading...</div>}>
           <div className="w-72 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
             <Sidebar
+              bufferValue={bufferValue}
+              bottleneckZone={bottleNeckZone}
+              setBottleneckZone={setBottleNeckZone}
+              setBufferValue={setBufferValue}
               setBuffer={setBuffer}
               setSelectedLayers={setSelectedTypes}
               analysisLayers={analysisLayers}
@@ -398,6 +353,9 @@ const sitePriorityFeaturesRef = useRef([]);
           <div className="flex-1 h-full overflow-hidden">
             <OpenLayerMap
               buffer={buffer}
+              analysisBuffer={bufferValue.analysis}
+              bottleneckZone={bottleNeckZone}
+              mlBuffer={bufferValue.ml}
               selectedTypes={selectedTypes}
               updateAnalysis={updateAnalysis}
               setAnalysisData={setAnalysisData}

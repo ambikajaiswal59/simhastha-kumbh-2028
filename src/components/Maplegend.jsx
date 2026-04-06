@@ -1,5 +1,5 @@
 import TenSeat from "../assets/10seat.png";
-import Om from "../assets/Icon/om.svg"
+import Om from "../assets/Icon/om.svg";
 
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
@@ -153,22 +153,22 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
           })}
         </div>
       )}
-              {/* DEMAND */}
-              {hasDemandLegend && (
-                <div>
-                  <div className="font-semibold mb-2">Demand Analysis</div>
-        
-                  {demandLegend.map((item) => (
-                    <div key={item.label} className="flex items-center gap-2 mb-1">
-                      <div
-                        className="w-4 h-4 border"
-                        style={{ background: item.color }}
-                      />
-                      <span>{item.label}</span>({item.value})
-                    </div>
-                  ))}
-                </div>
-              )}
+      {/* DEMAND */}
+      {hasDemandLegend && (
+        <div>
+          <div className="font-semibold mb-2">Demand Analysis</div>
+
+          {demandLegend.map((item) => (
+            <div key={item.label} className="flex items-center gap-2 mb-1">
+              <div
+                className="w-4 h-4 border"
+                style={{ background: item.color }}
+              />
+              <span>{item.label}</span>({item.value})
+            </div>
+          ))}
+        </div>
+      )}
       {/* SUPPLY */}
       {hasSupplyLegend && (
         <div>
@@ -185,7 +185,6 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
           ))}
         </div>
       )}
-
 
       {/* SUITABLE LAND LEGEND */}
       {hasSuitableLandLegend && (
