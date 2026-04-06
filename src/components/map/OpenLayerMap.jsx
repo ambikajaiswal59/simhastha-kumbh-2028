@@ -64,9 +64,11 @@ export default function OpenLayerMap({
   const streetLayerRef = useRef(null);
   const satelliteLayerRef = useRef(null);
   const [baseMapType, setBaseMapType] = useState("street");
-
+  
+  
   //////************************************* */
   const lastClickedCoordinateRef = useRef(null);
+  const coreAnalysisActiveRef = useRef(false);
 
 
 
@@ -632,7 +634,11 @@ export default function OpenLayerMap({
          fetchCoreAnalysis(type, lat, lon);
   
       });
-
+//  if (bufferRef.current > 0) {
+//    coreAnalysisActiveRef.current
+//      ? drawCoreAnalysisCircles()
+//      : runBufferAnalysis(evt.coordinate);
+//  }
       if (bufferRef.current > 0) {
         runBufferAnalysis(evt.coordinate);
       }
@@ -640,97 +646,7 @@ export default function OpenLayerMap({
     }
   };
 
-  /////********************************************** */
-  // const drawCoreAnalysisCircles = () => {
-  //   const coordinate = lastClickedCoordinateRef.current;
-
-  //   if (!coordinate || !bufferLayerRef.current) return;
-
-  //   const totalDistance = bufferRef.current * 1000;
-  //   if (totalDistance <= 0) return;
-
-  //   const source = bufferLayerRef.current.getSource();
-  //   source.clear();
-
-  //   [1, 2, 3, 4].forEach((step) => {
-  //     const circleFeature = new Feature({
-  //       geometry: new Circle(coordinate, (totalDistance / 4) * step),
-  //     });
-
-  //     circleFeature.setStyle(
-  //       new Style({
-  //         stroke: new Stroke({
-  //           color: "#f97316",
-  //           width: step === 4 ? 3 : 2,
-  //           lineDash: [6, 6],
-  //         }),
-  //         fill: new Fill({
-  //           color: "rgba(0,0,0,0)",
-  //         }),
-  //       }),
-  //     );
-
-  //     source.addFeature(circleFeature);
-  //   });
-  // };
-  // const drawCoreAnalysisCircles = () => {
-  //   const coordinate = lastClickedCoordinateRef.current;
-
-  //   if (!coordinate || !bufferLayerRef.current) return;
-
-  //   const totalDistance = bufferRef.current * 1000;
-  //   if (totalDistance <= 0) return;
-
-  //   const aoiFeatures = aoiLayerRef.current?.getSource()?.getFeatures();
-  //   if (!aoiFeatures || aoiFeatures.length === 0) return;
-
-  //   const aoiGeometry = aoiFeatures[0].getGeometry();
-  //   if (!aoiGeometry.intersectsCoordinate(coordinate)) return;
-
-  //   const source = bufferLayerRef.current.getSource();
-  //   source.clear();
-
-  //   const format = new GeoJSON();
-  //   const coord4326 = transform(coordinate, "EPSG:3857", "EPSG:4326");
-  //   const point = turf.point(coord4326);
-
-  //   const aoiGeoJSON3857 = format.writeFeatureObject(aoiFeatures[0]);
-  //   const aoiGeoJSON4326 = turf.toWgs84(aoiGeoJSON3857);
-
-  //   const circleColors = ["green", "yellow", "blue", "red"];
-
-  //   [1, 2, 3, 4].forEach((step) => {
-  //     const ringDistance = (totalDistance / 4) * step;
-
-  //     const ringBuffer = turf.buffer(point, ringDistance / 1000, {
-  //       units: "kilometers",
-  //     });
-
-  //     const clipped = turf.intersect(
-  //       turf.featureCollection([ringBuffer, aoiGeoJSON4326]),
-  //     );
-
-  //     if (!clipped) return;
-
-  //     const clipped3857 = turf.toMercator(clipped);
-  //     const circleFeature = format.readFeature(clipped3857);
-
-  //     circleFeature.setStyle(
-  //       new Style({
-  //         stroke: new Stroke({
-  //           color: circleColors[step - 1],
-  //           width: step === 4 ? 3 : 2,
-  //           lineDash: [6, 6],
-  //         }),
-  //         fill: new Fill({
-  //           color: "rgba(0,0,0,0)",
-  //         }),
-  //       }),
-  //     );
-
-  //     source.addFeature(circleFeature);
-  //   });
-  // };
+/*********************************** */
 const drawCoreAnalysisCircles = () => {
   const coordinate = lastClickedCoordinateRef.current;
 
@@ -800,6 +716,8 @@ const drawCoreAnalysisCircles = () => {
  const handleCoreAnalysis = () => {
    const coordinate = lastClickedCoordinateRef.current;
    if (!coordinate) return;
+   coreAnalysisActiveRef.current = true;
+
 
    const [lon, lat] = toLonLat(coordinate);
 
@@ -809,7 +727,9 @@ const drawCoreAnalysisCircles = () => {
      fetchCoreAnalysis(type, lat, lon);
    });
     };
-const handleCloseCoreAnalysis = () => {
+    const handleCloseCoreAnalysis = () => {
+  coreAnalysisActiveRef.current = false;
+
   const coordinate = lastClickedCoordinateRef.current;
 
   if (!coordinate || !bufferLayerRef.current) return;
@@ -1017,25 +937,6 @@ const getIcon = (type) => {
 };
 
 
-  // const getIcon = (type) => {
-  //   switch (type) {
-  //     case "toilets_sanitation":
-  //       return "/icons/toilet.svg";
-  //     case "police_station":
-  //       return "/icons/police.svg";
-  //     case "parking_loc":
-  //       return "/icons/parking.svg";
-  //     case "road_network3":
-  //       return "/icons/road.svg";
-  //     case "temple_ujjain":
-  //       return "/icons/temple.svg";
-  //     case "junction":
-  //       return "/icons/junction.svg";
-  //     default:
-  //       return "/icons/default.svg";
-  //   }
-  // };
-
   const createLayerStyle = (type) => (f) => getStyle(f, type);
   const drawBufferCircle = (coordinate, bufferDistance) => {
     if (!bufferLayerRef.current) return;
@@ -1190,6 +1091,7 @@ const getIcon = (type) => {
       .catch(console.error);
   };
 /******** */
+
 
   // -----------------------------
   // AOI API
@@ -1359,13 +1261,16 @@ const getIcon = (type) => {
               mb={1}
               borderBottom={1}
             >
-              {/* <Typography variant="subtitle1" fontWeight="bold">
-                Scenerio Sanitation
-              </Typography> */}
+             
               <Stack spacing={0.2}>
+                {/* Heading */}
                 <Typography variant="subtitle1" fontWeight="bold">
+                  Amenity Distance
+                </Typography>
+
+                {/* Address line in new row */}
+                <Typography variant="body2" fontWeight={500}>
                   {[
-                    "Amenity Distance ",
                     popupInfo?.Building,
                     popupInfo?.Landmark,
                     popupInfo?.Road,

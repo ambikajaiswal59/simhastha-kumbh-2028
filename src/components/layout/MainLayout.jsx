@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import Header from "./Header";
 import { useMapContext } from "../../context/MapContext";
-import { Style, Icon } from "ol/style";
+import { Style, Icon, Text, Fill, Stroke } from "ol/style";
+
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
-import TenSeat from "../../assets/10seat.png";
+import TenSeat from "../../assets/Icon/T1.png";
 import { lazy, Suspense } from "react";
 
 const OpenLayerMap = lazy(() => import("../map/OpenLayerMap"));
@@ -45,10 +46,6 @@ const sitePriorityFeaturesRef = useRef([]);
   /***************************************/
 
 
-  ///****************************************** */
-  const [selectedCoordinate, setSelectedCoordinate] = useState(null);
-  const [coreAnalysisRequest, setCoreAnalysisRequest] = useState(0);
-  /////////*************************************** */
 
 
   // Land Suaitablity Dropdown state
@@ -63,16 +60,20 @@ const sitePriorityFeaturesRef = useRef([]);
     }));
   };
   const priorityMap = {
-    road: "d_road",
-    parking: "d_parking",
+    road: "s_road",
+    parking: "s_parking",
     toilet: "d_toilet",
     water: "d_water",
     medical: "d_medical",
     police: "d_police",
     electric: "d_electric",
-    river: "d_river",
+    ghat: "s_ghat",
+    temple: "s_temple",
+    Supply: "gap_sc",
+    Demand: "demand_sc",
   };
 
+  // console.log("priority", priorityMap);
   const createHighlightLayer = () => {
     if (highlightLayerRef.current) return;
 
@@ -86,10 +87,8 @@ const sitePriorityFeaturesRef = useRef([]);
     highlightLayerRef.current = highlightLayer;
   };
 
+  
   // const handleToiletAnalysis = () => {
-
-
-
   //   setAnalysingSitePriority(true);
   //   const selectedFeatures = runAnalysis(proximity, toiletSheet);
 
@@ -108,7 +107,10 @@ const sitePriorityFeaturesRef = useRef([]);
   setAnalysingSitePriority(true);
 
   const selectedFeatures = runAnalysis(proximity, toiletSheet);
-  sitePriorityFeaturesRef.current = selectedFeatures.map((f) => f.clone());
+    // sitePriorityFeaturesRef.current = selectedFeatures.map((f) => f.clone());//******* */
+    sitePriorityFeaturesRef.current = selectedFeatures;
+
+  
 
   if (highlightLayerRef.current) {
     highlightLayerRef.current.getSource().clear();
@@ -189,6 +191,8 @@ const sitePriorityFeaturesRef = useRef([]);
 
     const feature =
       sitePriorityFeaturesRef.current[sitePriorityIndexRef.current];
+    // feature.set("toiletCount", 10);/******** */
+
 
     source.addFeature(feature);
 
@@ -271,14 +275,30 @@ const sitePriorityFeaturesRef = useRef([]);
       point = geometry; // fallback (for Point)
     }
 
+    // return new Style({
+    //   geometry: point,
+    //   image: new Icon({
+    //     src: TenSeat,
+    //     scale: 0.10,
+    //     anchor: [0.5, 1],
+    //   }),
+    // });
     return new Style({
       geometry: point,
       image: new Icon({
         src: TenSeat,
-        scale: 0.15,
+        scale: 0.1,
         anchor: [0.5, 1],
       }),
+      text: new Text({
+        text: String(feature.get("toiletCount") ?? ""),
+        offsetY: -15,
+        font: "bold 12px sans-serif",
+        fill: new Fill({ color: "#111827" }),
+        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+      }),
     });
+
   };
 
   const runAnalysis = (selectedPriorities, totalCabinsRequired) => {
@@ -350,7 +370,11 @@ const sitePriorityFeaturesRef = useRef([]);
       const assign = Math.min(maxCabinsPerGrid, cabinsRemaining);
       cabinsRemaining -= assign;
 
-      selectedFeatures.push(d.feature);
+      // selectedFeatures.push(d.feature);////****** */
+      const featureClone = d.feature.clone();
+      featureClone.set("toiletCount", assign);
+      selectedFeatures.push(featureClone);
+
     }
 
     return selectedFeatures;
@@ -363,10 +387,7 @@ const sitePriorityFeaturesRef = useRef([]);
     });
   };
   //*** *********************/
-  const handleCoreAnalysis = () => {
-    if (!selectedCoordinate) return;
-    setCoreAnalysisRequest((prev) => prev + 1);
-  };
+ 
 ////************************* */
 
   return (
