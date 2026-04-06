@@ -1,5 +1,5 @@
 import TenSeat from "../assets/10seat.png";
-import OmIcon from "../assets/Icon/om.svg";
+import Om from "../assets/Icon/om.svg";
 
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
@@ -13,21 +13,22 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
     },
     parking_loc: {
       label: "Parking",
-      icon: "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+      icon: "https://api.iconify.design/mdi/parking.svg?color=blue",
     },
+
     road_network3: {
       label: "Road",
-      icon: "https://cdn-icons-png.flaticon.com/512/684/684809.png",
+      icon: "https://api.iconify.design/mdi/vector-polyline.svg?color=red",
     },
 
     temple_ujjain: {
-      label: "Temple Ujjain",
-     icon: OmIcon,
+      label: "Temple",
+      icon: Om,
     },
 
     junction: {
       label: "Junctions",
-      icon: "https://cdn-icons-png.flaticon.com/512/1483/1483336.png",
+      icon: "https://api.iconify.design/mdi/vector-intersection.svg?color=purple",
     },
   };
 
@@ -35,27 +36,27 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
     {
       label: "Very High",
       color: "#004562", //"rgba(107,4,4,0.6)",
-      value: "22",
+      value: ">=22",
     },
     {
       label: "High",
       color: "#007DB3", //"rgba(255,0,0,0.6)",
-      value: "17",
+      value: "21-16",
     },
     {
       label: "Moderate",
       color: "#009DE1", //"rgba(255,165,0,0.6)"
-      value: "12",
+      value: "15-11",
     },
     {
       label: "Low",
       color: "#57CDFF", //"rgba(255,255,0,0.6)"
-      value: "10",
+      value: "10-6",
     },
     {
       label: "Very Low",
       color: "#85DAFF", //"rgba(0,255,0,0.6)",
-      value: "2",
+      value: "<=5",
     },
   ];
 
@@ -125,8 +126,8 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
   // IMPORTANT CONDITION FIX
   const hasServiceLegend = selectedTypes?.length > 0;
-  const hasSupplyLegend = analysisLayers?.supply;
   const hasDemandLegend = analysisLayers?.demand;
+  const hasSupplyLegend = analysisLayers?.supply;
   const hasSuitableLandLegend = analysisLayers.suitable_land;
   const hasSitePriority = analysisLayers.site_priority;
 
@@ -152,12 +153,12 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
           })}
         </div>
       )}
-      {/* SUPPLY */}
-      {hasSupplyLegend && (
+      {/* DEMAND */}
+      {hasDemandLegend && (
         <div>
-          <div className="font-semibold mb-2">Supply Analysis</div>
+          <div className="font-semibold mb-2">Demand Analysis</div>
 
-          {supplyLegend.map((item) => (
+          {demandLegend.map((item) => (
             <div key={item.label} className="flex items-center gap-2 mb-1">
               <div
                 className="w-4 h-4 border"
@@ -168,13 +169,12 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
           ))}
         </div>
       )}
-
-      {/* DEMAND */}
-      {hasDemandLegend && (
+      {/* SUPPLY */}
+      {hasSupplyLegend && (
         <div>
-          <div className="font-semibold mb-2">Demand Analysis</div>
+          <div className="font-semibold mb-2">Supply Analysis</div>
 
-          {demandLegend.map((item) => (
+          {supplyLegend.map((item) => (
             <div key={item.label} className="flex items-center gap-2 mb-1">
               <div
                 className="w-4 h-4 border"

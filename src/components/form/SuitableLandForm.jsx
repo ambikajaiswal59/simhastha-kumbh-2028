@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+
 import {
   TextField,
   FormControl,
@@ -25,7 +25,7 @@ const SuitableLandForm = ({
     { id: 5, label: "Medical", field: "medical" },
     { id: 6, label: "Police", field: "police" },
     { id: 7, label: "Electric", field: "electric" },
-    { id: 8, label: "River", field: "river" },
+    { id: 8, label: "Ghat", field: "river" },
   ];
 
   return (
@@ -174,35 +174,9 @@ const SuitableLandForm = ({
             </MenuItem>
           ))}
         </Select>
-        {/* <Select
-          labelId="proximity-label"
-          id="proximity-with"
-          multiple
-          label="Proximity with"
-          value={proximity}
-          displayEmpty
-          onChange={(e) => {
-            const value = e.target.value;
-            setProximity(typeof value === "string" ? value.split(",") : value);
-          }}
-          renderValue={(selected) => {
-            if (selected.length === 0) return;
-
-            return priorityMap
-              .filter((p) => selected.includes(p.field))
-              .map((p) => p.label)
-              .join(", ");
-          }}
-        >
-          {priorityMap.map((p) => (
-            <MenuItem key={p.id} value={p.field}>
-              <Checkbox checked={proximity.includes(p.field)} size="small" />
-              {p.label}
-            </MenuItem>
-          ))}
-        </Select> */}
+        
       </FormControl>
-      <FormControl fullWidth size="small">
+      {/* <FormControl fullWidth size="small">
         <Button
           onClick={handleToiletAnalysis}
           variant="contained"
@@ -210,6 +184,41 @@ const SuitableLandForm = ({
         >
           Analyse
         </Button>
+      </FormControl> */}
+      <FormControl fullWidth size="small">
+        <div className="w-full space-y-2">
+          <Button
+            onClick={handleToiletAnalysis}
+            variant="contained"
+            color="warning"
+            fullWidth
+          >
+            Analyse
+          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={() =>
+                window.dispatchEvent(new Event("toggle-site-priority-pause"))
+              }
+              variant="outlined"
+              sx={{ flex: 1, color: "white", borderColor: "white" }}
+            >
+              Pause
+            </Button>
+
+            <Button
+              onClick={() =>
+                window.dispatchEvent(new Event("clear-site-priority"))
+              }
+              variant="outlined"
+              color="error"
+              sx={{ flex: 1 }}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
       </FormControl>
     </Paper>
   );

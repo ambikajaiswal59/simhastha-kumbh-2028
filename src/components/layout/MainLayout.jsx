@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import Header from "./Header";
 import { useMapContext } from "../../context/MapContext";
 import { Style, Icon } from "ol/style";
@@ -6,6 +6,7 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import TenSeat from "../../assets/10seat.png";
 import { lazy, Suspense } from "react";
+import { set } from "ol/transform";
 
 const OpenLayerMap = lazy(() => import("../map/OpenLayerMap"));
 const AnalysisPanel = lazy(() => import("../analysis/AnalysisPanel"));
@@ -35,13 +36,20 @@ export default function MainLayout() {
     analysis: { enabled: false, value: 100 },
     ml: { enabled: false, value: 100 },
   });
+
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [bufferResults, setBufferResults] = useState([]);
   const [bottleNeckZone, setBottleNeckZone] = useState("ALL");
   const [toiletSheet, setToiletSheet] = useState("");
   const [proximity, setProximity] = useState([]);
-  const bufferEnabledRef = useRef(false);
+  const bufferEnabledRef = useRef(true);
   const [bufferEnabled, setBufferEnabled] = useState(false);
+  /*****************************************/
+  const sitePriorityTimerRef = useRef(null);
+  const sitePriorityPausedRef = useRef(false);
+  const sitePriorityFeaturesRef = useRef([]);
+  const sitePriorityIndexRef = useRef(0);
+  /***************************************/
 
   // Land Suaitablity Dropdown state
   const [showLandSuitableDropdown, setShowLandSuitableDropdown] =
@@ -64,19 +72,6 @@ export default function MainLayout() {
     electric: "d_electric",
     river: "d_river",
   };
-
-  const createHighlightLayer = () => {
-    if (highlightLayerRef.current) return;
-
-    const highlightLayer = new VectorLayer({
-      source: new VectorSource(),
-      style: highlightStyle,
-      zIndex: 1000, // 👈 keep it on top
-    });
-
-    mapObj.current.addLayer(highlightLayer);
-    highlightLayerRef.current = highlightLayer;
-  };
   useEffect(() => {
     if (!selectedFeature) return;
 
@@ -92,28 +87,53 @@ export default function MainLayout() {
       setSelectedFeature(null);
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-  const handleToiletAnalysis = () => {
-    setAnalysingSitePriority(true);
-    const selectedFeatures = runAnalysis(proximity, toiletSheet);
 
-    setTimeout(() => {
-      highlightFeatures(selectedFeatures);
+  const createHighlightLayer = () => {
+    if (highlightLayerRef.current) return;
+
+    const highlightLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: highlightStyle,
+      zIndex: 1000, // 👈 keep it on top
+    });
+
+    mapObj.current.addLayer(highlightLayer);
+    highlightLayerRef.current = highlightLayer;
+  };
+
+  //modified//
+  const handleToiletAnalysis = () => {
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityPausedRef.current = false;
+    sitePriorityIndexRef.current = 0;
+
+    setAnalysingSitePriority(true);
+
+    const selectedFeatures = runAnalysis(proximity, toiletSheet);
+    sitePriorityFeaturesRef.current = selectedFeatures.map((f) => f.clone());
+
+    if (highlightLayerRef.current) {
+      highlightLayerRef.current.getSource().clear();
+    }
+
+    sitePriorityTimerRef.current = setTimeout(() => {
+      highlightFeatures();
     }, 5000);
   };
 
-  const highlightFeatures = (features) => {
+  const highlightFeatures = () => {
     createHighlightLayer();
 
     const source = highlightLayerRef.current.getSource();
-    source.clear();
-
-    const clonedFeatures = features.map((f) => f.clone());
-
-    let index = 0;
 
     const addNextFeature = () => {
-      if (index >= clonedFeatures.length) {
+      if (sitePriorityPausedRef.current) return;
+
+      if (
+        sitePriorityIndexRef.current >= sitePriorityFeaturesRef.current.length
+      ) {
         setAnalysingSitePriority(false);
+        sitePriorityTimerRef.current = null;
 
         setAnalysisLayers((prev) => ({
           ...prev,
@@ -123,28 +143,76 @@ export default function MainLayout() {
         return;
       }
 
-      const feature = clonedFeatures[index];
+      const feature =
+        sitePriorityFeaturesRef.current[sitePriorityIndexRef.current];
 
-      // ✅ Add feature
       source.addFeature(feature);
 
-      // ✅ Zoom to that feature
       const geometry = feature.getGeometry();
       const extent = geometry.getExtent();
 
       mapObj.current.getView().fit(extent, {
-        duration: 400, // smooth animation
+        duration: 400,
         padding: [80, 80, 80, 80],
-        maxZoom: 18, // prevent too much zoom
+        maxZoom: 18,
       });
 
-      index++;
-
-      setTimeout(addNextFeature, 2000);
+      sitePriorityIndexRef.current += 1;
+      sitePriorityTimerRef.current = setTimeout(addNextFeature, 2000);
     };
 
     addNextFeature();
   };
+  /********************************** */
+  const handlePauseSitePriority = () => {
+    if (!sitePriorityFeaturesRef.current.length) return;
+
+    if (sitePriorityPausedRef.current) {
+      sitePriorityPausedRef.current = false;
+      setAnalysingSitePriority(true);
+      highlightFeatures();
+      return;
+    }
+
+    sitePriorityPausedRef.current = true;
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityTimerRef.current = null;
+    setAnalysingSitePriority(false);
+  };
+
+  const handleClearSitePriority = () => {
+    sitePriorityPausedRef.current = false;
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityTimerRef.current = null;
+    sitePriorityFeaturesRef.current = [];
+    sitePriorityIndexRef.current = 0;
+
+    setAnalysingSitePriority(false);
+
+    if (highlightLayerRef.current) {
+      highlightLayerRef.current.getSource().clear();
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener(
+      "toggle-site-priority-pause",
+      handlePauseSitePriority,
+    );
+    window.addEventListener("clear-site-priority", handleClearSitePriority);
+
+    return () => {
+      window.removeEventListener(
+        "toggle-site-priority-pause",
+        handlePauseSitePriority,
+      );
+      window.removeEventListener(
+        "clear-site-priority",
+        handleClearSitePriority,
+      );
+    };
+  }, []);
+  /****************************************** */
 
   const highlightStyle = (feature) => {
     const geometry = feature.getGeometry();
@@ -244,11 +312,12 @@ export default function MainLayout() {
     return selectedFeatures;
   };
 
-  const handleBufferEnabled = () => {
-    setBufferEnabled((prev) => {
-      bufferEnabledRef.current = !prev; // keep ref in sync
-      return !prev;
-    });
+  const handleBufferEnabled = (mode) => {
+    if (mode === "analysis") {
+      bufferEnabledRef.current = true;
+    } else if (mode === "ml") {
+      bufferEnabledRef.current = false;
+    }
   };
 
   return (
