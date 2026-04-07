@@ -27,7 +27,7 @@ export default function Sidebar({
   });
 
   const [gridSize, updateGridSize] = useState(50);
-  const [activeBufferType, setActiveBufferType] = useState("analysis");
+  const [activeBufferType, setActiveBufferType] = useState("");
   const [weightsState, updateWeights] = useState({
     temple: 5,
     parking: 3,
@@ -321,22 +321,31 @@ export default function Sidebar({
                         return {
                           ...prev,
                           ml: { ...prev.ml, enabled },
-                          analysis: { ...prev.analysis, enabled: false }, // keep single mode
+                          analysis: { ...prev.analysis, enabled: false },
                         };
                       });
 
-                      // ✅ Set active type correctly
-                      setActiveBufferType((prev) =>
-                        prev === "ml" ? null : "ml",
-                      );
+                      const isTurningOff = bufferValue.ml.enabled; // current state BEFORE toggle
 
-                      // ✅ Control accordions ONLY when turning ON
-                      if (!bufferValue.ml.enabled) {
+                      // ✅ If turning OFF → reset everything
+                      if (isTurningOff) {
+                        setAnalysisLayers({
+                          emptySpace: false,
+                          bottleneck: false,
+                        });
+
+                        setBottleneckZone("ALL"); // optional reset
+                        setActiveBufferType(null);
+                        handleBufferEnabled(null);
+                      } else {
+                        // ✅ If turning ON → open ML UI
+                        setActiveBufferType("ml");
+
                         setAccordionOpen((prev) => ({
                           ...prev,
                           mlLayer: true,
                           layers: false,
-                          buffer: true,
+                          buffer: false,
                         }));
                       }
                     }}
@@ -452,7 +461,7 @@ export default function Sidebar({
                 </h4>
 
                 {/* EMPTY SPACE */}
-                <label className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10">
+                <label className="flex items-center justify-between bg-white/5 px-3 py-2 mb-3 rounded-lg border border-white/10">
                   <span className="flex items-center gap-2">
                     <input
                       type="checkbox"

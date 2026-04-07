@@ -89,7 +89,7 @@ export default function OpenLayerMap({
   const bufferGeometryRef = useRef(null);
   //////************************************* */
   const lastClickedCoordinateRef = useRef(null);
-     const coreAnalysisActiveRef = useRef(false);
+  const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   // -----------------------------
   // ICON STYLE
@@ -485,28 +485,48 @@ export default function OpenLayerMap({
       clearBuffer(); // ✅ THIS FIXES IT
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-  const fetchData = async () => {
-    try {
-      const res = await fetch(API.emptySpaces(mlBuffer.value));
-      const data = await res.json();
+const fetchData = async () => {
+  try {
+    const res = await fetch(API.emptySpaces(mlBuffer.value));
+    const data = await res.json();
 
-      if (data.data.length > 0) {
-        const center = data.data[0];
+    const spaces = data.data;
 
-        // ✅ CREATE BUFFER FIRST
-        runMLBuffer(
-          Number(center.centroid_x),
-          Number(center.centroid_y),
-          mlBuffer.value,
-        );
-      }
+    if (spaces.length > 0) {
+      const format = new WKT();
 
-      // ✅ THEN DRAW (with buffer ready)
-      drawMLPolygons(data.data);
-    } catch (err) {
-      console.error(err);
+      let combinedExtent = null;
+
+      spaces.forEach((space) => {
+        const geometry = format.readGeometry(space.space_wkt, {
+          dataProjection: "EPSG:32643",
+          featureProjection: "EPSG:3857",
+        });
+
+        const extent = geometry.getExtent();
+
+        if (!combinedExtent) {
+          combinedExtent = extent;
+        } else {
+          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+        }
+      });
+
+      // ✅ SAME centroid logic as bottleneck
+      const center = getCenter(combinedExtent);
+
+      runMLBuffer(center[0], center[1], mlBuffer.value, true);
     }
-  };
+
+    drawMLPolygons(spaces);
+
+  } catch (err) {
+    console.error(err);
+  }
+};
   const drawMLPolygons = (spaces) => {
     if (!mlLayerRef.current) return;
 
@@ -548,44 +568,65 @@ export default function OpenLayerMap({
   // -----------------------------
   // Bottleneck Layer
   // -----------------------------
+useEffect(() => {
+  if (!analysisLayers.bottleneck) {
+    bottleneckLayerRef.current.getSource().clear();
+    bottleneckLayerRef.current.setVisible(false);
+    return;
+  }
 
-  useEffect(() => {
-    // if (!mapReady || !mlBuffer?.enabled) return;
+  loadBottleneckData(mlBuffer.value, bottleneckZone);
 
-    if (analysisLayers.bottleneck) {
-      // ✅ ALWAYS create buffer first
-      //createBufferFromMapCenter();
+}, [
+  analysisLayers.bottleneck,
+  mlBuffer.value,
+  mlBuffer.enabled,
+  bottleneckZone,
+]);
 
-      // ✅ THEN load data
-      loadBottleneckData(mlBuffer.value, bottleneckZone);
-    } else {
-      bottleneckLayerRef.current.getSource().clear();
-      bottleneckLayerRef.current.setVisible(false);
+const loadBottleneckData = async (radius, zone) => {
+  try {
+    const response = await fetch(
+      API.bottlenecks(radius, zone)
+    );
+    const result = await response.json();
+    const data = result.data;
+
+    if (data.length > 0) {
+      const format = new WKT();
+
+      let combinedExtent = null;
+
+      data.forEach((item) => {
+        const geometry = format.readGeometry(item.space_wkt, {
+          dataProjection: "EPSG:32643",
+          featureProjection: "EPSG:3857",
+        });
+
+        const extent = geometry.getExtent();
+
+        if (!combinedExtent) {
+          combinedExtent = extent;
+        } else {
+          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+        }
+      });
+
+      // ✅ FINAL CENTER
+      const center = getCenter(combinedExtent);
+
+      runMLBuffer(center[0], center[1], radius, true);
     }
-  }, [
-    analysisLayers.bottleneck,
-    mlBuffer.value,
-    mlBuffer.enabled,
-    bottleneckZone,
-  ]);
-  // const createBufferFromMapCenter = () => {
-  //   const center = mapObj.current.getView().getCenter();
-  //   if (!center) return;
 
-  //   runMLBuffer(center[0], center[1], mlBuffer.value, true);
-  // };
-  const loadBottleneckData = async (radius, zone) => {
-    try {
-      const response = await fetch(
-        API.bottlenecks(mlBuffer.value, bottleneckZone),
-      );
-      const result = await response.json();
+    drawBottleneckFeatures(data);
 
-      drawBottleneckFeatures(result.data);
-    } catch (err) {
-      console.error("Bottleneck API error:", err);
-    }
-  };
+  } catch (err) {
+    console.error("Bottleneck API error:", err);
+  }
+};
 
   const drawBottleneckFeatures = (data) => {
     const format = new WKT();
@@ -619,12 +660,15 @@ export default function OpenLayerMap({
     bottleneckLayerRef.current.changed();
   };
 
-  const clearBuffer = () => {
-    if (!bufferLayerRef.current) return;
+const clearBuffer = () => {
+  // ❌ DO NOT clear ML buffer
+ 
 
-    bufferLayerRef.current.getSource().clear();
-    bufferGeometryRef.current = null;
-  };
+  if (!bufferLayerRef.current) return;
+
+  bufferLayerRef.current.getSource().clear();
+  bufferGeometryRef.current = null;
+};
 
   // -----------------------------
   // LAYER FACTORY 🔥
@@ -676,7 +720,7 @@ export default function OpenLayerMap({
             bufferEnabledRef.current === false &&
             layerName === "ScenerioSanitation Layer"
           ) {
-            bufferLayerRef.current.getSource().clear();
+
             setAnalysisData({});
             setPopupInfo(properties);
             overlayRef.current.setPosition(evt.coordinate);
@@ -719,21 +763,21 @@ export default function OpenLayerMap({
     // -----------------------------
     // BUFFER ANALYSIS (unchanged)
     // -----------------------------
-//     if (bufferEnabledRef.current) {
-//       selectedRef.current.forEach((type) => {
-//         fetchAnalysis(type, lat, lon);
-//         fetchCoreAnalysis(type, lat, lon);
-//       });
-//  if (bufferRef.current > 0) {
-//    coreAnalysisActiveRef.current
-//      ? drawCoreAnalysisCircles()
-//      : runBufferAnalysis(evt.coordinate);
-//  }
-//       if (bufferRef.current > 0) {
-//         runBufferAnalysis(evt.coordinate);
-//       }
-//     }
-//   };
+    //     if (bufferEnabledRef.current) {
+    //       selectedRef.current.forEach((type) => {
+    //         fetchAnalysis(type, lat, lon);
+    //         fetchCoreAnalysis(type, lat, lon);
+    //       });
+    //  if (bufferRef.current > 0) {
+    //    coreAnalysisActiveRef.current
+    //      ? drawCoreAnalysisCircles()
+    //      : runBufferAnalysis(evt.coordinate);
+    //  }
+    //       if (bufferRef.current > 0) {
+    //         runBufferAnalysis(evt.coordinate);
+    //       }
+    //     }
+    //   };
     if (bufferEnabledRef.current) {
       selectedRef.current.forEach((type) => {
         fetchAnalysis(type, lat, lon);
@@ -749,7 +793,6 @@ export default function OpenLayerMap({
       }
     }
   };
-
 
   const drawCoreAnalysisCircles = () => {
     const coordinate = lastClickedCoordinateRef.current;
@@ -816,11 +859,10 @@ export default function OpenLayerMap({
 
   ////************************************** ***********/
   useEffect(() => {
- const handleCoreAnalysis = () => {
-   const coordinate = lastClickedCoordinateRef.current;
-   if (!coordinate) return;
-   coreAnalysisActiveRef.current = true;
-
+    const handleCoreAnalysis = () => {
+      const coordinate = lastClickedCoordinateRef.current;
+      if (!coordinate) return;
+      coreAnalysisActiveRef.current = true;
 
       const [lon, lat] = toLonLat(coordinate);
 
@@ -831,9 +873,9 @@ export default function OpenLayerMap({
       });
     };
     const handleCloseCoreAnalysis = () => {
-  coreAnalysisActiveRef.current = false;
+      coreAnalysisActiveRef.current = false;
 
-  const coordinate = lastClickedCoordinateRef.current;
+      const coordinate = lastClickedCoordinateRef.current;
 
       if (!coordinate || !bufferLayerRef.current) return;
 
@@ -1201,7 +1243,6 @@ export default function OpenLayerMap({
   };
   /******** */
 
-
   // -----------------------------
   // AOI API
   // -----------------------------
@@ -1369,7 +1410,6 @@ export default function OpenLayerMap({
               mb={1}
               borderBottom={1}
             >
-             
               <Stack spacing={0.2}>
                 {/* Heading */}
                 <Typography variant="subtitle1" fontWeight="bold">
