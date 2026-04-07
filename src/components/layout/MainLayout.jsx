@@ -352,7 +352,6 @@ export default function MainLayout() {
   };
 
   const handleBufferEnabled = (mode) => {
-    debugger;
     if (mode === "analysis") {
       bufferEnabledRef.current = true;
     } else if (mode === "ml") {

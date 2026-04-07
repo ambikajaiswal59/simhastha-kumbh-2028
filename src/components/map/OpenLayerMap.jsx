@@ -615,7 +615,6 @@ export default function OpenLayerMap({
     });
 
     source.addFeatures(filteredFeatures);
-    console.log("Bottleneck features:", filteredFeatures.length);
     bottleneckLayerRef.current.setVisible(true);
     bottleneckLayerRef.current.changed();
   };
@@ -644,7 +643,6 @@ export default function OpenLayerMap({
   // CLICK HANDLER 🔥 (OPTIMIZED)
   // -----------------------------
   const handleMapClick = (evt) => {
-    debugger;
     const [lon, lat] = toLonLat(evt.coordinate);
 
     lastClickedCoordinateRef.current = evt.coordinate;
