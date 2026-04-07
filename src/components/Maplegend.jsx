@@ -1,24 +1,28 @@
 import TenSeat from "../assets/10seat.png";
-import Om from "../assets/Icon/om.svg";
+import Om from "../assets/Icon/temple.svg";
+import ToiletSantation from "../assets/Icon/toilets.svg";
+import PoliceStation from "../assets/Icon/police.svg";
+import Parking from "../assets/Icon/parking.svg";
+import Junction from "../assets/Icon/junction.svg";
 
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
     toilets_sanitation: {
       label: "Toilet",
-      icon: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+      icon: ToiletSantation,
     },
     police_station: {
       label: "Police Station",
-      icon: "https://cdn-icons-png.flaticon.com/512/149/149060.png",
+      icon: PoliceStation,
     },
     parking_loc: {
       label: "Parking",
-      icon: "https://api.iconify.design/mdi/parking.svg?color=blue",
+      icon: Parking,
     },
 
     road_network3: {
       label: "Road",
-      icon: "https://api.iconify.design/mdi/vector-polyline.svg?color=red",
+      icon: "https://cdn-icons-png.flaticon.com/512/684/684809.png",
     },
 
     temple_ujjain: {
@@ -28,7 +32,7 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
     junction: {
       label: "Junctions",
-      icon: "https://api.iconify.design/mdi/vector-intersection.svg?color=purple",
+      icon: Junction,
     },
   };
 
@@ -146,7 +150,7 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
             return (
               <div key={type} className="flex items-center gap-2 mb-1">
-                <img src={item.icon} alt={item.label} className="w-4 h-4" />
+                <img src={item.icon} alt={item.label} className="w-6 h-6" />
                 <span>{item.label}</span>
               </div>
             );
@@ -210,8 +214,8 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
           {highlightLegend.map((item) => (
             <div key={item.label} className="flex items-center gap-2 mb-1">
               <img
-                width="20px"
-                height="20px"
+                width="30px"
+                height="30px"
                 src={item.icon}
                 alt="toilet.png"
               />

@@ -39,7 +39,11 @@ import { Paper, Typography, Stack, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 import LocationIcon from "../../assets/location.svg";
-import omIcon from "../../assets/Icon/om.svg";
+import Om from "../../assets/Icon/temple.svg";
+import ToiletSantation from "../../assets/Icon/toilets.svg";
+import PoliceStation from "../../assets/Icon/police.svg";
+import Parking from "../../assets/Icon/parking.svg";
+import Junction from "../../assets/Icon/junction.svg";
 
 export default function OpenLayerMap({
   buffer,
@@ -97,7 +101,7 @@ export default function OpenLayerMap({
       return new Style({
         image: new Icon({
           src: getIcon(type),
-          scale: 0.05,
+          scale: 0.3,
         }),
       });
     }
@@ -105,7 +109,7 @@ export default function OpenLayerMap({
     if (geometryType === "LineString" || geometryType === "MultiLineString") {
       return new Style({
         stroke: new Stroke({
-          color: "#ff6600",
+          color: "#E9B63B",
           width: 3,
         }),
       });
@@ -454,7 +458,6 @@ export default function OpenLayerMap({
   }, []);
 
   useEffect(() => {
-
     // if (!mlBuffer?.enabled || !mapReady) return;
 
     // ✅ ADD THIS CHECK
@@ -483,7 +486,6 @@ export default function OpenLayerMap({
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
   const fetchData = async () => {
-
     try {
       const res = await fetch(API.emptySpaces(mlBuffer.value));
       const data = await res.json();
@@ -573,7 +575,6 @@ export default function OpenLayerMap({
   //   runMLBuffer(center[0], center[1], mlBuffer.value, true);
   // };
   const loadBottleneckData = async (radius, zone) => {
-
     try {
       const response = await fetch(
         API.bottlenecks(mlBuffer.value, bottleneckZone),
@@ -643,6 +644,7 @@ export default function OpenLayerMap({
   // CLICK HANDLER 🔥 (OPTIMIZED)
   // -----------------------------
   const handleMapClick = (evt) => {
+    debugger;
     const [lon, lat] = toLonLat(evt.coordinate);
 
     lastClickedCoordinateRef.current = evt.coordinate;
@@ -693,6 +695,9 @@ export default function OpenLayerMap({
             source.addFeature(marker);
 
             found = true;
+          } else {
+            const source = clickMarkerLayerRef.current.getSource();
+            source.clear();
           }
 
           return true; // ✅ break after first valid feature
@@ -1009,22 +1014,22 @@ export default function OpenLayerMap({
   const getIcon = (type) => {
     switch (type) {
       case "toilets_sanitation":
-        return "https://cdn-icons-png.flaticon.com/512/684/684908.png";
+        return ToiletSantation;
 
       case "police_station":
-        return "https://cdn-icons-png.flaticon.com/512/149/149060.png";
+        return PoliceStation; // "https://cdn-icons-png.flaticon.com/512/149/149060.png";
 
       case "parking_loc":
-        return "https://cdn-icons-png.flaticon.com/512/854/854878.png";
+        return Parking; // "https://cdn-icons-png.flaticon.com/512/854/854878.png";
 
       case "road_network3":
         return "https://cdn-icons-png.flaticon.com/512/684/684809.png";
 
       case "temple_ujjain":
-        return omIcon; //
+        return Om; //
 
       case "junction":
-        return "https://cdn-icons-png.flaticon.com/512/1483/1483336.png";
+        return Junction;
 
       default:
         return "https://cdn-icons-png.flaticon.com/512/252/252025.png";
@@ -1275,7 +1280,6 @@ export default function OpenLayerMap({
   // SCENERION SANITATION API
   // -----------------------------
   const sanitationScenerio = async () => {
-
     try {
       const res = await fetch(API.sanitation);
       const json = await res.json();

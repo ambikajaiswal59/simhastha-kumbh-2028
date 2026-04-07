@@ -43,7 +43,7 @@ export default function MainLayout() {
   const [bottleNeckZone, setBottleNeckZone] = useState("ALL");
   const [toiletSheet, setToiletSheet] = useState("");
   const [proximity, setProximity] = useState([]);
-  const bufferEnabledRef = useRef(true);
+  const bufferEnabledRef = useRef(false);
   const [bufferEnabled, setBufferEnabled] = useState(false);
   /*****************************************/
   const sitePriorityTimerRef = useRef(null);
@@ -352,9 +352,12 @@ export default function MainLayout() {
   };
 
   const handleBufferEnabled = (mode) => {
+    debugger;
     if (mode === "analysis") {
       bufferEnabledRef.current = true;
     } else if (mode === "ml") {
+      bufferEnabledRef.current = true;
+    }else if(mode === null){
       bufferEnabledRef.current = false;
     }
   };
