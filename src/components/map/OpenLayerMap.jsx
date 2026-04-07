@@ -85,6 +85,7 @@ export default function OpenLayerMap({
   const bufferGeometryRef = useRef(null);
   //////************************************* */
   const lastClickedCoordinateRef = useRef(null);
+     const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   // -----------------------------
   // ICON STYLE
@@ -715,6 +716,21 @@ export default function OpenLayerMap({
     // -----------------------------
     // BUFFER ANALYSIS (unchanged)
     // -----------------------------
+//     if (bufferEnabledRef.current) {
+//       selectedRef.current.forEach((type) => {
+//         fetchAnalysis(type, lat, lon);
+//         fetchCoreAnalysis(type, lat, lon);
+//       });
+//  if (bufferRef.current > 0) {
+//    coreAnalysisActiveRef.current
+//      ? drawCoreAnalysisCircles()
+//      : runBufferAnalysis(evt.coordinate);
+//  }
+//       if (bufferRef.current > 0) {
+//         runBufferAnalysis(evt.coordinate);
+//       }
+//     }
+//   };
     if (bufferEnabledRef.current) {
       selectedRef.current.forEach((type) => {
         fetchAnalysis(type, lat, lon);
@@ -722,10 +738,15 @@ export default function OpenLayerMap({
       });
 
       if (bufferRef.current > 0) {
-        runBufferAnalysis(evt.coordinate);
+        if (coreAnalysisActiveRef.current) {
+          drawCoreAnalysisCircles();
+        } else {
+          runBufferAnalysis(evt.coordinate);
+        }
       }
     }
   };
+
 
   const drawCoreAnalysisCircles = () => {
     const coordinate = lastClickedCoordinateRef.current;
@@ -792,9 +813,11 @@ export default function OpenLayerMap({
 
   ////************************************** ***********/
   useEffect(() => {
-    const handleCoreAnalysis = () => {
-      const coordinate = lastClickedCoordinateRef.current;
-      if (!coordinate) return;
+ const handleCoreAnalysis = () => {
+   const coordinate = lastClickedCoordinateRef.current;
+   if (!coordinate) return;
+   coreAnalysisActiveRef.current = true;
+
 
       const [lon, lat] = toLonLat(coordinate);
 
@@ -805,7 +828,9 @@ export default function OpenLayerMap({
       });
     };
     const handleCloseCoreAnalysis = () => {
-      const coordinate = lastClickedCoordinateRef.current;
+  coreAnalysisActiveRef.current = false;
+
+  const coordinate = lastClickedCoordinateRef.current;
 
       if (!coordinate || !bufferLayerRef.current) return;
 
@@ -1173,6 +1198,7 @@ export default function OpenLayerMap({
   };
   /******** */
 
+
   // -----------------------------
   // AOI API
   // -----------------------------
@@ -1341,13 +1367,16 @@ export default function OpenLayerMap({
               mb={1}
               borderBottom={1}
             >
-              {/* <Typography variant="subtitle1" fontWeight="bold">
-                Scenerio Sanitation
-              </Typography> */}
+             
               <Stack spacing={0.2}>
+                {/* Heading */}
                 <Typography variant="subtitle1" fontWeight="bold">
+                  Amenity Distance
+                </Typography>
+
+                {/* Address line in new row */}
+                <Typography variant="body2" fontWeight={500}>
                   {[
-                    "Amenity Distance ",
                     popupInfo?.Building,
                     popupInfo?.Landmark,
                     popupInfo?.Road,

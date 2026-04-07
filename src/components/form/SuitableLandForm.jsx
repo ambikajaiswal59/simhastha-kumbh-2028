@@ -20,12 +20,15 @@ const SuitableLandForm = ({
   const priorityMap = [
     { id: 1, label: "Road", field: "road" },
     { id: 2, label: "Parking", field: "parking" },
-    { id: 3, label: "Toilet", field: "toilet" },
-    { id: 4, label: "Water", field: "water" },
-    { id: 5, label: "Medical", field: "medical" },
-    { id: 6, label: "Police", field: "police" },
-    { id: 7, label: "Electric", field: "electric" },
-    { id: 8, label: "Ghat", field: "river" },
+    // { id: 3, label: "Toilet", field: "toilet" },
+    // { id: 4, label: "Water", field: "water" },
+    // { id: 5, label: "Medical", field: "medical" },
+    // { id: 6, label: "Police", field: "police" },
+    // { id: 7, label: "Electric", field: "electric" },
+    { id: 8, label: "Ghat", field: "ghat" },
+    { id: 9, label: "Temple", field: "temple" },
+    { id: 10, label: "Demand", field: "Demand" },
+    { id: 11, label: "Supply-Gap", field: "Supply" },
   ];
 
   return (
