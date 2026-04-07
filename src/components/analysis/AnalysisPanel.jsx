@@ -280,7 +280,6 @@ export default function AnalysisPanel({
               {/* ================= BOTTLENECK ================= */}
               {layer.includes("bottleneck") &&
                 (() => {
-                  debugger;
                   const risk = selectedFeature?.risk_class || "LOW";
 
                   return (
