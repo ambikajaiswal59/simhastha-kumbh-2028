@@ -1,11 +1,13 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import Header from "./Header";
 import { useMapContext } from "../../context/MapContext";
-import { Style, Icon } from "ol/style";
+import { Style, Icon, Text, Fill, Stroke } from "ol/style";
+
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
-import TenSeat from "../../assets/10seat.png";
+import TenSeat from "../../assets/Icon/T1.png";
 import { lazy, Suspense } from "react";
+import { set } from "ol/transform";
 
 const OpenLayerMap = lazy(() => import("../map/OpenLayerMap"));
 const AnalysisPanel = lazy(() => import("../analysis/AnalysisPanel"));
@@ -27,19 +29,28 @@ export default function MainLayout() {
     gap: false,
     suitable_land: false,
     site_priority: false,
+    emptySpace: false,
+    bottleneck: false,
   });
   const [analysisData, setAnalysisData] = useState({});
   const [bufferValue, setBufferValue] = useState({
     analysis: { enabled: false, value: 100 },
     ml: { enabled: false, value: 100 },
   });
+
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [bufferResults, setBufferResults] = useState([]);
-
+  const [bottleNeckZone, setBottleNeckZone] = useState("ALL");
   const [toiletSheet, setToiletSheet] = useState("");
   const [proximity, setProximity] = useState([]);
   const bufferEnabledRef = useRef(false);
   const [bufferEnabled, setBufferEnabled] = useState(false);
+  /*****************************************/
+  const sitePriorityTimerRef = useRef(null);
+  const sitePriorityPausedRef = useRef(false);
+  const sitePriorityFeaturesRef = useRef([]);
+  const sitePriorityIndexRef = useRef(0);
+  /***************************************/
 
   // Land Suaitablity Dropdown state
   const [showLandSuitableDropdown, setShowLandSuitableDropdown] =
@@ -53,16 +64,35 @@ export default function MainLayout() {
     }));
   };
   const priorityMap = {
-    road: "d_road",
-    parking: "d_parking",
+    road: "s_road",
+    parking: "s_parking",
     toilet: "d_toilet",
     water: "d_water",
     medical: "d_medical",
     police: "d_police",
     electric: "d_electric",
-    river: "d_river",
+    ghat: "s_ghat",
+    temple: "s_temple",
+    Supply: "gap_sc",
+    Demand: "demand_sc",
   };
+  useEffect(() => {
+    if (!selectedFeature) return;
 
+    const layer = selectedFeature.layer?.toLowerCase() || "";
+
+    // ✅ if empty space unchecked → remove its card
+    if (layer.includes("ml") && !analysisLayers.emptySpace) {
+      setSelectedFeature(null);
+    }
+
+    // ✅ if bottleneck unchecked → remove its card
+    if (layer.includes("bottleneck") && !analysisLayers.bottleneck) {
+      setSelectedFeature(null);
+    }
+  }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
+
+  // console.log("priority", priorityMap);
   const createHighlightLayer = () => {
     if (highlightLayerRef.current) return;
 
@@ -76,28 +106,53 @@ export default function MainLayout() {
     highlightLayerRef.current = highlightLayer;
   };
 
-  const handleToiletAnalysis = () => {
-    setAnalysingSitePriority(true);
-    const selectedFeatures = runAnalysis(proximity, toiletSheet);
+  
+  // const handleToiletAnalysis = () => {
+  //   setAnalysingSitePriority(true);
+  //   const selectedFeatures = runAnalysis(proximity, toiletSheet);
 
-    setTimeout(() => {
-      highlightFeatures(selectedFeatures);
+  //   setTimeout(() => {
+  //     highlightFeatures(selectedFeatures);
+  //   }, 5000);
+  // };
+
+  
+  //modified//
+  const handleToiletAnalysis = () => {
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityPausedRef.current = false;
+    sitePriorityIndexRef.current = 0;
+
+    setAnalysingSitePriority(true);
+
+  const selectedFeatures = runAnalysis(proximity, toiletSheet);
+    // sitePriorityFeaturesRef.current = selectedFeatures.map((f) => f.clone());//******* */
+    sitePriorityFeaturesRef.current = selectedFeatures;
+
+  
+
+    if (highlightLayerRef.current) {
+      highlightLayerRef.current.getSource().clear();
+    }
+
+    sitePriorityTimerRef.current = setTimeout(() => {
+      highlightFeatures();
     }, 5000);
   };
 
-  const highlightFeatures = (features) => {
+  const highlightFeatures = () => {
     createHighlightLayer();
 
     const source = highlightLayerRef.current.getSource();
-    source.clear();
-
-    const clonedFeatures = features.map((f) => f.clone());
-
-    let index = 0;
 
     const addNextFeature = () => {
-      if (index >= clonedFeatures.length) {
+      if (sitePriorityPausedRef.current) return;
+
+      if (
+        sitePriorityIndexRef.current >= sitePriorityFeaturesRef.current.length
+      ) {
         setAnalysingSitePriority(false);
+        sitePriorityTimerRef.current = null;
 
         setAnalysisLayers((prev) => ({
           ...prev,
@@ -107,28 +162,76 @@ export default function MainLayout() {
         return;
       }
 
-      const feature = clonedFeatures[index];
+      const feature =
+        sitePriorityFeaturesRef.current[sitePriorityIndexRef.current];
 
-      // ✅ Add feature
       source.addFeature(feature);
 
-      // ✅ Zoom to that feature
       const geometry = feature.getGeometry();
       const extent = geometry.getExtent();
 
       mapObj.current.getView().fit(extent, {
-        duration: 400, // smooth animation
+        duration: 400,
         padding: [80, 80, 80, 80],
-        maxZoom: 18, // prevent too much zoom
+        maxZoom: 18,
       });
 
-      index++;
-
-      setTimeout(addNextFeature, 2000);
+      sitePriorityIndexRef.current += 1;
+      sitePriorityTimerRef.current = setTimeout(addNextFeature, 2000);
     };
 
     addNextFeature();
   };
+  /********************************** */
+  const handlePauseSitePriority = () => {
+    if (!sitePriorityFeaturesRef.current.length) return;
+
+    if (sitePriorityPausedRef.current) {
+      sitePriorityPausedRef.current = false;
+      setAnalysingSitePriority(true);
+      highlightFeatures();
+      return;
+    }
+
+    sitePriorityPausedRef.current = true;
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityTimerRef.current = null;
+    setAnalysingSitePriority(false);
+  };
+
+  const handleClearSitePriority = () => {
+    sitePriorityPausedRef.current = false;
+    clearTimeout(sitePriorityTimerRef.current);
+    sitePriorityTimerRef.current = null;
+    sitePriorityFeaturesRef.current = [];
+    sitePriorityIndexRef.current = 0;
+
+    setAnalysingSitePriority(false);
+
+    if (highlightLayerRef.current) {
+      highlightLayerRef.current.getSource().clear();
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener(
+      "toggle-site-priority-pause",
+      handlePauseSitePriority,
+    );
+    window.addEventListener("clear-site-priority", handleClearSitePriority);
+
+    return () => {
+      window.removeEventListener(
+        "toggle-site-priority-pause",
+        handlePauseSitePriority,
+      );
+      window.removeEventListener(
+        "clear-site-priority",
+        handleClearSitePriority,
+      );
+    };
+  }, []);
+  /****************************************** */
 
   const highlightStyle = (feature) => {
     const geometry = feature.getGeometry();
@@ -143,14 +246,30 @@ export default function MainLayout() {
       point = geometry; // fallback (for Point)
     }
 
+    // return new Style({
+    //   geometry: point,
+    //   image: new Icon({
+    //     src: TenSeat,
+    //     scale: 0.10,
+    //     anchor: [0.5, 1],
+    //   }),
+    // });
     return new Style({
       geometry: point,
       image: new Icon({
         src: TenSeat,
-        scale: 0.15,
+        scale: 0.1,
         anchor: [0.5, 1],
       }),
+      text: new Text({
+        text: String(feature.get("toiletCount") ?? ""),
+        offsetY: -15,
+        font: "bold 12px sans-serif",
+        fill: new Fill({ color: "#111827" }),
+        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+      }),
     });
+
   };
 
   const runAnalysis = (selectedPriorities, totalCabinsRequired) => {
@@ -222,17 +341,25 @@ export default function MainLayout() {
       const assign = Math.min(maxCabinsPerGrid, cabinsRemaining);
       cabinsRemaining -= assign;
 
-      selectedFeatures.push(d.feature);
+      // selectedFeatures.push(d.feature);////****** */
+      const featureClone = d.feature.clone();
+      featureClone.set("toiletCount", assign);
+      selectedFeatures.push(featureClone);
+
     }
 
     return selectedFeatures;
   };
 
-  const handleBufferEnabled = () => {
-    setBufferEnabled((prev) => {
-      bufferEnabledRef.current = !prev; // keep ref in sync
-      return !prev;
-    });
+  const handleBufferEnabled = (mode) => {
+    if (mode === "analysis" || mode === "ml") {
+      bufferEnabledRef.current = true;
+    } else if (mode === null) {
+      bufferEnabledRef.current = false;
+
+      // 🔹 Also clear any existing buffer & popup on the map
+      window.dispatchEvent(new CustomEvent("clear-buffer-graphics"));
+    }
   };
 
   return (
@@ -249,6 +376,8 @@ export default function MainLayout() {
           <div className="w-72 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
             <Sidebar
               bufferValue={bufferValue}
+              bottleneckZone={bottleNeckZone}
+              setBottleneckZone={setBottleNeckZone}
               setBufferValue={setBufferValue}
               setBuffer={setBuffer}
               setSelectedLayers={setSelectedTypes}
@@ -264,11 +393,10 @@ export default function MainLayout() {
         {/* MAP (NO SCROLL) */}
         <Suspense fallback={<div>Loading...</div>}>
           <div className="flex-1 h-full overflow-hidden">
-            
             <OpenLayerMap
-            
               buffer={buffer}
               analysisBuffer={bufferValue.analysis}
+              bottleneckZone={bottleNeckZone}
               mlBuffer={bufferValue.ml}
               selectedTypes={selectedTypes}
               updateAnalysis={updateAnalysis}

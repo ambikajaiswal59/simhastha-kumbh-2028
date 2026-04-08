@@ -1,32 +1,38 @@
 import TenSeat from "../assets/10seat.png";
+import Om from "../assets/Icon/temple.svg";
+import ToiletSantation from "../assets/Icon/toilets.svg";
+import PoliceStation from "../assets/Icon/police.svg";
+import Parking from "../assets/Icon/parking.svg";
+import Junction from "../assets/Icon/junction.svg";
 
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
     toilets_sanitation: {
       label: "Toilet",
-      icon: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+      icon: ToiletSantation,
     },
     police_station: {
       label: "Police Station",
-      icon: "https://cdn-icons-png.flaticon.com/512/149/149060.png",
+      icon: PoliceStation,
     },
     parking_loc: {
       label: "Parking",
-      icon: "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+      icon: Parking,
     },
+
     road_network3: {
       label: "Road",
       icon: "https://cdn-icons-png.flaticon.com/512/684/684809.png",
     },
 
     temple_ujjain: {
-      label: "Temple Ujjain",
-      icon: "https://cdn-icons-png.flaticon.com/512/3176/3176292.png",
+      label: "Temple",
+      icon: Om,
     },
 
     junction: {
       label: "Junctions",
-      icon: "https://cdn-icons-png.flaticon.com/512/1483/1483336.png",
+      icon: Junction,
     },
   };
 
@@ -34,27 +40,27 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
     {
       label: "Very High",
       color: "#004562", //"rgba(107,4,4,0.6)",
-      value: "22",
+      value: ">=22",
     },
     {
       label: "High",
       color: "#007DB3", //"rgba(255,0,0,0.6)",
-      value: "17",
+      value: "21-16",
     },
     {
       label: "Moderate",
       color: "#009DE1", //"rgba(255,165,0,0.6)"
-      value: "12",
+      value: "15-11",
     },
     {
       label: "Low",
       color: "#57CDFF", //"rgba(255,255,0,0.6)"
-      value: "10",
+      value: "10-6",
     },
     {
       label: "Very Low",
       color: "#85DAFF", //"rgba(0,255,0,0.6)",
-      value: "2",
+      value: "<=5",
     },
   ];
 
@@ -124,8 +130,8 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
   // IMPORTANT CONDITION FIX
   const hasServiceLegend = selectedTypes?.length > 0;
-  const hasSupplyLegend = analysisLayers?.supply;
   const hasDemandLegend = analysisLayers?.demand;
+  const hasSupplyLegend = analysisLayers?.supply;
   const hasSuitableLandLegend = analysisLayers.suitable_land;
   const hasSitePriority = analysisLayers.site_priority;
 
@@ -144,19 +150,19 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
 
             return (
               <div key={type} className="flex items-center gap-2 mb-1">
-                <img src={item.icon} alt={item.label} className="w-4 h-4" />
+                <img src={item.icon} alt={item.label} className="w-6 h-6" />
                 <span>{item.label}</span>
               </div>
             );
           })}
         </div>
       )}
-      {/* SUPPLY */}
-      {hasSupplyLegend && (
+      {/* DEMAND */}
+      {hasDemandLegend && (
         <div>
-          <div className="font-semibold mb-2">Supply Analysis</div>
+          <div className="font-semibold mb-2">Demand Analysis</div>
 
-          {supplyLegend.map((item) => (
+          {demandLegend.map((item) => (
             <div key={item.label} className="flex items-center gap-2 mb-1">
               <div
                 className="w-4 h-4 border"
@@ -167,13 +173,12 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
           ))}
         </div>
       )}
-
-      {/* DEMAND */}
-      {hasDemandLegend && (
+      {/* SUPPLY */}
+      {hasSupplyLegend && (
         <div>
-          <div className="font-semibold mb-2">Demand Analysis</div>
+          <div className="font-semibold mb-2">Supply Analysis</div>
 
-          {demandLegend.map((item) => (
+          {supplyLegend.map((item) => (
             <div key={item.label} className="flex items-center gap-2 mb-1">
               <div
                 className="w-4 h-4 border"
@@ -209,8 +214,8 @@ export default function MapLegend({ analysisLayers, selectedTypes }) {
           {highlightLegend.map((item) => (
             <div key={item.label} className="flex items-center gap-2 mb-1">
               <img
-                width="20px"
-                height="20px"
+                width="30px"
+                height="30px"
                 src={item.icon}
                 alt="toilet.png"
               />

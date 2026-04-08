@@ -1,28 +1,49 @@
 import { useEffect, useRef, useState } from "react";
 import "ol/ol.css";
+
 import Map from "ol/Map";
 import View from "ol/View";
-import TileLayer from "ol/layer/Tile";
-import Point from "ol/geom/Point";
-import Feature from "ol/Feature";
 import Overlay from "ol/Overlay";
-import OSM from "ol/source/OSM";
-import { fromLonLat, toLonLat, transform } from "ol/proj";
-import MapLegend from "../Maplegend";
+import Feature from "ol/Feature";
+
+import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
+
+import OSM from "ol/source/OSM";
+import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
-import GeoJSON from "ol/format/GeoJSON";
-import Icon from "ol/style/Icon";
-import { API } from "../../config/api";
-import { defaults as defaultControls } from "ol/control";
+
+import Point from "ol/geom/Point";
 import Circle from "ol/geom/Circle";
+
+import GeoJSON from "ol/format/GeoJSON";
+import WKT from "ol/format/WKT";
+
+import { fromLonLat, toLonLat, transform } from "ol/proj";
+import { getCenter } from "ol/extent";
+
+import { defaults as defaultControls } from "ol/control";
+
+import Icon from "ol/style/Icon";
 import { Stroke, Fill, Style } from "ol/style";
+import CircleStyle from "ol/style/Circle";
+
 import * as turf from "@turf/turf";
+
+import { API } from "../../config/api";
 import { useMapContext } from "../../context/MapContext";
+
+import MapLegend from "../Maplegend";
+
 import { Paper, Typography, Stack, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+
 import LocationIcon from "../../assets/location.svg";
-import WKT from "ol/format/WKT";
+import Om from "../../assets/Icon/temple.svg";
+import ToiletSantation from "../../assets/Icon/toilets.svg";
+import PoliceStation from "../../assets/Icon/police.svg";
+import Parking from "../../assets/Icon/parking.svg";
+import Junction from "../../assets/Icon/junction.svg";
 
 export default function OpenLayerMap({
   buffer,
@@ -34,6 +55,7 @@ export default function OpenLayerMap({
   analysisLayers,
   setBufferResults,
   bufferEnabledRef,
+  bottleneckZone,
 }) {
   const {
     mapRef,
@@ -44,7 +66,7 @@ export default function OpenLayerMap({
     scenerioSanitationRef,
     clickMarkerLayerRef,
   } = useMapContext();
-  const [mapReady, setMapReady] = useState(false);
+
   const selectedRef = useRef([]);
   const vectorSourceRef = useRef(null);
   const vectorLayerRef = useRef(null);
@@ -60,7 +82,15 @@ export default function OpenLayerMap({
   const [popupInfo, setPopupInfo] = useState(null);
   const popupRef = useRef(null);
   const overlayRef = useRef(null);
-
+  const streetLayerRef = useRef(null);
+  const satelliteLayerRef = useRef(null);
+  const [baseMapType, setBaseMapType] = useState("street");
+  const bottleneckLayerRef = useRef(null);
+  const bufferGeometryRef = useRef(null);
+  //////************************************* */
+  const lastClickedCoordinateRef = useRef(null);
+  const coreAnalysisActiveRef = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
   // -----------------------------
   // ICON STYLE
   // -----------------------------
@@ -71,7 +101,7 @@ export default function OpenLayerMap({
       return new Style({
         image: new Icon({
           src: getIcon(type),
-          scale: 0.05,
+          scale: 0.3,
         }),
       });
     }
@@ -79,7 +109,7 @@ export default function OpenLayerMap({
     if (geometryType === "LineString" || geometryType === "MultiLineString") {
       return new Style({
         stroke: new Stroke({
-          color: "#ff6600",
+          color: "#E9B63B",
           width: 3,
         }),
       });
@@ -238,7 +268,7 @@ export default function OpenLayerMap({
   }, [selectedTypes]);
 
   useEffect(() => {
-    if (mapObj.current) return; // ✅ prevent re-init
+    if (mapObj.current) return; // prevent re-init
 
     vectorSourceRef.current = new VectorSource();
 
@@ -246,13 +276,27 @@ export default function OpenLayerMap({
       source: vectorSourceRef.current,
     });
 
-    const baseLayer = new TileLayer({
+    //************************************* */ { street map}
+    streetLayerRef.current = new TileLayer({
       source: new OSM(),
+      visible: true,
+    });
+    // { satelliteLaye----**}
+    satelliteLayerRef.current = new TileLayer({
+      source: new XYZ({
+        url: "https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        crossOrigin: "anonymous",
+      }),
+      visible: false,
     });
 
     mapObj.current = new Map({
       target: mapRef.current,
-      layers: [baseLayer, vectorLayerRef.current],
+      layers: [
+        streetLayerRef.current,
+        satelliteLayerRef.current,
+        vectorLayerRef.current,
+      ],
       view: new View({
         center: fromLonLat([75.7683, 23.1824]),
         zoom: 15,
@@ -263,7 +307,7 @@ export default function OpenLayerMap({
         attribution: false,
       }),
     });
-
+    //************************************************ */
     overlayRef.current = new Overlay({
       element: popupRef.current,
       positioning: "center-left", // 👈 anchor popup from left side
@@ -315,8 +359,7 @@ export default function OpenLayerMap({
       source: new VectorSource(),
       zIndex: 99999, // below click marker, above others if needed
     });
-
-    mlLayerRef.current.set("name", "ML Empty Spaces Layer");
+    mlLayerRef.current.set("name", "ML Layer");
     mlLayerRef.current.setStyle(
       new Style({
         stroke: new Stroke({
@@ -324,10 +367,63 @@ export default function OpenLayerMap({
           width: 2,
         }),
         fill: new Fill({
-          color: "rgba(34, 197, 94, 0.2)", // ✅ transparent
+          color: "rgba(34, 197, 94, 0.2)", // s
         }),
       }),
     );
+
+    bottleneckLayerRef.current = new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+      zIndex: 9998,
+    });
+
+    bottleneckLayerRef.current.set("name", "Bottleneck Layer");
+
+    bottleneckLayerRef.current.setStyle((feature) => {
+      const risk = feature.get("risk_class");
+
+      let strokeColor = "#facc15"; // yellow
+
+      if (risk === "CRITICAL") {
+        strokeColor = "#ef4444";
+      } else if (risk === "HIGH") {
+        strokeColor = "#f97316";
+      }
+
+      const geometry = feature.getGeometry();
+
+      // center point
+      const centerPoint = new Point(getCenter(geometry.getExtent()));
+
+      return [
+        // 🔷 Glow layer
+        new Style({
+          geometry: centerPoint,
+          image: new CircleStyle({
+            radius: 12,
+            fill: new Fill({
+              color: `${strokeColor}33`,
+            }),
+          }),
+        }),
+
+        // 🔷 Main badge
+        new Style({
+          geometry: centerPoint,
+          image: new CircleStyle({
+            radius: 8,
+            fill: new Fill({
+              color: strokeColor,
+            }),
+            stroke: new Stroke({
+              color: "#fff",
+              width: 2,
+            }),
+          }),
+        }),
+      ];
+    });
     // -----------------------------
     // ADD LAYERS (ORDER MATTERS)
     // -----------------------------
@@ -339,6 +435,7 @@ export default function OpenLayerMap({
     mapObj.current.addLayer(suitableLandRef.current);
     mapObj.current.addLayer(scenerioSanitationRef.current);
     mapObj.current.addLayer(mlLayerRef.current);
+    mapObj.current.addLayer(bottleneckLayerRef.current);
     mapObj.current.addLayer(clickMarkerLayerRef.current);
 
     // -----------------------------
@@ -349,7 +446,7 @@ export default function OpenLayerMap({
     sanitationScenerio();
 
     mapObj.current.on("click", handleMapClick);
-    setMapReady(true);
+
     // -----------------------------
     // CLEANUP
     // -----------------------------
@@ -361,62 +458,239 @@ export default function OpenLayerMap({
   }, []);
 
   useEffect(() => {
-  if (!mlBuffer?.enabled || !mapReady) return;
+    // if (!mlBuffer?.enabled || !mapReady) return;
 
-  const fetchData = async () => {
-    try {
-      const res = await fetch(
-        `http://192.168.1.16:5000/empty-spaces?radius=${mlBuffer.value}`
-      );
-      const data = await res.json();
-
-      drawMLPolygons(data.data);
-
-      // 👇 AUTO BUFFER CENTER
-      if (data.data.length > 0) {
-        const center = data.data[0];
-
-        runMLBuffer(
-          Number(center.centroid_x),
-          Number(center.centroid_y),
-          mlBuffer.value // meters
-        );
+    // ✅ ADD THIS CHECK
+    if (!analysisLayers.emptySpace) {
+      if (mlLayerRef.current) {
+        mlLayerRef.current.getSource().clear();
+        mlLayerRef.current.setVisible(false);
       }
-    } catch (err) {
-      console.error(err);
+      return;
+    }
+
+    fetchData();
+  }, [
+    mlBuffer?.value,
+    mlBuffer?.enabled,
+    mapReady,
+    analysisLayers.emptySpace, // ✅ IMPORTANT
+  ]);
+
+  useEffect(() => {
+    const noLayerSelected =
+      !analysisLayers.emptySpace && !analysisLayers.bottleneck;
+
+    if (noLayerSelected) {
+      clearBuffer(); // ✅ THIS FIXES IT
+    }
+  }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
+const fetchData = async () => {
+  try {
+    const res = await fetch(API.emptySpaces(mlBuffer.value));
+    const data = await res.json();
+
+    const spaces = data.data;
+
+    if (spaces.length > 0) {
+      const format = new WKT();
+
+      let combinedExtent = null;
+
+      spaces.forEach((space) => {
+        const geometry = format.readGeometry(space.space_wkt, {
+          dataProjection: "EPSG:32643",
+          featureProjection: "EPSG:3857",
+        });
+
+        const extent = geometry.getExtent();
+
+        if (!combinedExtent) {
+          combinedExtent = extent;
+        } else {
+          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+        }
+      });
+
+      // ✅ SAME centroid logic as bottleneck
+      const center = getCenter(combinedExtent);
+
+      runMLBuffer(center[0], center[1], mlBuffer.value, true);
+    }
+
+    drawMLPolygons(spaces);
+
+  } catch (err) {
+    console.error(err);
+  }
+};
+  const drawMLPolygons = (spaces) => {
+    if (!mlLayerRef.current) return;
+
+    const source = mlLayerRef.current.getSource();
+    source.clear();
+
+    const format = new WKT();
+
+    spaces.forEach((space) => {
+      const feature = format.readFeature(space.space_wkt, {
+        dataProjection: "EPSG:32643",
+        featureProjection: "EPSG:3857",
+      });
+
+      // 🔥 VERY IMPORTANT → attach API properties
+      feature.setProperties({
+        area_sqm: space.area_sqm,
+        occupied_pct: space.occupied_pct,
+        distance_from_temple: space.distance_from_temple,
+        centroid_x: space.centroid_x,
+        centroid_y: space.centroid_y,
+        layer: "ML Layer", // ✅ ensure layer is consistent
+      });
+
+      // ✅ FILTER INSIDE BUFFER
+      if (
+        !bufferGeometryRef.current ||
+        bufferGeometryRef.current.intersectsExtent(
+          feature.getGeometry().getExtent(),
+        )
+      ) {
+        source.addFeature(feature);
+      }
+    });
+
+    mlLayerRef.current.setVisible(true);
+  };
+
+  // -----------------------------
+  // Bottleneck Layer
+  // -----------------------------
+useEffect(() => {
+  if (!analysisLayers.bottleneck) {
+    bottleneckLayerRef.current.getSource().clear();
+    bottleneckLayerRef.current.setVisible(false);
+    return;
+  }
+
+  loadBottleneckData(mlBuffer.value, bottleneckZone);
+
+}, [
+  analysisLayers.bottleneck,
+  mlBuffer.value,
+  mlBuffer.enabled,
+  bottleneckZone,
+]);
+
+const loadBottleneckData = async (radius, zone) => {
+  try {
+    const response = await fetch(
+      API.bottlenecks(radius, zone)
+    );
+    const result = await response.json();
+    const data = result.data;
+
+    if (data.length > 0) {
+      const format = new WKT();
+
+      let combinedExtent = null;
+
+      data.forEach((item) => {
+        const geometry = format.readGeometry(item.space_wkt, {
+          dataProjection: "EPSG:32643",
+          featureProjection: "EPSG:3857",
+        });
+
+        const extent = geometry.getExtent();
+
+        if (!combinedExtent) {
+          combinedExtent = extent;
+        } else {
+          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+        }
+      });
+
+      // ✅ FINAL CENTER
+      const center = getCenter(combinedExtent);
+
+      runMLBuffer(center[0], center[1], radius, true);
+    }
+
+    drawBottleneckFeatures(data);
+
+  } catch (err) {
+    console.error("Bottleneck API error:", err);
+  }
+};
+
+  const drawBottleneckFeatures = (data) => {
+    const format = new WKT();
+    const source = bottleneckLayerRef.current.getSource();
+
+    source.clear();
+
+    const features = data.map((item) => {
+      const geometry = format.readGeometry(item.space_wkt, {
+        dataProjection: "EPSG:32643",
+        featureProjection: "EPSG:3857",
+      });
+
+      return new Feature({
+        geometry,
+        ...item,
+      });
+    });
+
+    // ✅ FILTER BEFORE ADDING
+    const filteredFeatures = features.filter((feature) => {
+      if (!bufferGeometryRef.current) return true;
+
+      return bufferGeometryRef.current.intersectsExtent(
+        feature.getGeometry().getExtent(),
+      );
+    });
+
+    source.addFeatures(filteredFeatures);
+    bottleneckLayerRef.current.setVisible(true);
+    bottleneckLayerRef.current.changed();
+  };
+
+const clearBuffer = () => {
+  // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
+  if (!bufferLayerRef.current) return;
+
+  bufferLayerRef.current.getSource().clear();
+  bufferGeometryRef.current = null;
+};
+
+// When buffer is globally disabled (both toggles OFF), clear buffer + popup
+useEffect(() => {
+  const handleClear = () => {
+    clearBuffer();
+
+    if (overlayRef.current) {
+      overlayRef.current.setPosition(undefined);
+    }
+
+    if (clickMarkerLayerRef.current) {
+      const src = clickMarkerLayerRef.current.getSource();
+      src && src.clear();
     }
   };
 
-  fetchData();
-}, [mlBuffer?.value, mlBuffer?.enabled, mapReady]);
+  window.addEventListener("clear-buffer-graphics", handleClear);
+  return () => window.removeEventListener("clear-buffer-graphics", handleClear);
+}, []);
 
-const drawMLPolygons = (spaces) => {
-  if (!mlLayerRef.current) return;
-
-  const source = mlLayerRef.current.getSource();
-  source.clear();
-
-  const format = new WKT();
-
-  spaces.forEach((space) => {
-    const feature = format.readFeature(space.space_wkt, {
-      dataProjection: "EPSG:32643",
-      featureProjection: "EPSG:3857",
-    });
-
-    source.addFeature(feature);
-  });
-
-  console.log("Features:", source.getFeatures().length);
-
-  mlLayerRef.current.setVisible(true);
-
-  
-};
   // -----------------------------
   // LAYER FACTORY 🔥
   // -----------------------------
-  const createLayer = (style, name, visible = false) => {
+  const createLayer = (style, visible = false, name) => {
     const layer = new VectorLayer({
       source: new VectorSource(),
       style,
@@ -430,42 +704,72 @@ const drawMLPolygons = (spaces) => {
   // CLICK HANDLER 🔥 (OPTIMIZED)
   // -----------------------------
   const handleMapClick = (evt) => {
-    debugger;
     const [lon, lat] = toLonLat(evt.coordinate);
 
+    lastClickedCoordinateRef.current = evt.coordinate;
+
     let found = false;
+    let selected = null;
 
     mapObj.current.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
       const layerName = layer?.get("name");
+      if (!layerName) return false;
 
-      const properties = { ...feature.getProperties() };
-      delete properties.geometry;
-
-      setSelectedFeature(properties);
-
+      // ✅ Allow only these layers
       if (
-        bufferEnabledRef.current === false &&
-        layerName === "ScenerioSanitation Layer"
+        layerName === "ScenerioSanitation Layer" ||
+        layerName === "Bottleneck Layer" ||
+        layerName === "ML Layer"
       ) {
-        bufferLayerRef.current.getSource().clear();
-        setAnalysisData({});
-        setPopupInfo(properties);
-        overlayRef.current.setPosition(evt.coordinate);
+        if (!selected) {
+          const properties = { ...feature.getProperties() };
+          delete properties.geometry;
 
-        // 🔥 Marker
-        const source = clickMarkerLayerRef.current.getSource();
-        source.clear();
+          selected = {
+            ...properties,
+            layer: layerName,
+          };
 
-        const marker = new Feature({
-          geometry: new Point(evt.coordinate),
-        });
+          // -----------------------------
+          // SCENERIO SANITATION BEHAVIOR
+          // -----------------------------
+          if (
+            bufferEnabledRef.current === false &&
+            layerName === "ScenerioSanitation Layer"
+          ) {
 
-        marker.setStyle(markerStyle);
-        source.addFeature(marker);
+            setAnalysisData({});
+            setPopupInfo(properties);
+            overlayRef.current.setPosition(evt.coordinate);
 
-        found = true;
+            // 🔥 Marker
+            const source = clickMarkerLayerRef.current.getSource();
+            source.clear();
+
+            const marker = new Feature({
+              geometry: new Point(evt.coordinate),
+            });
+
+            marker.setStyle(markerStyle);
+            source.addFeature(marker);
+
+            found = true;
+          } else {
+            const source = clickMarkerLayerRef.current.getSource();
+            source.clear();
+          }
+
+          return true; // ✅ break after first valid feature
+        }
       }
     });
+
+    // ✅ Set selected feature ONLY ONCE
+    if (selected) {
+      setSelectedFeature(selected);
+    } else {
+      setSelectedFeature(null);
+    }
 
     // Close popup if nothing clicked
     if (!found) {
@@ -474,20 +778,142 @@ const drawMLPolygons = (spaces) => {
     }
 
     // -----------------------------
-    // BUFFER ANALYSIS
+    // BUFFER ANALYSIS (unchanged)
     // -----------------------------
+    //     if (bufferEnabledRef.current) {
+    //       selectedRef.current.forEach((type) => {
+    //         fetchAnalysis(type, lat, lon);
+    //         fetchCoreAnalysis(type, lat, lon);
+    //       });
+    //  if (bufferRef.current > 0) {
+    //    coreAnalysisActiveRef.current
+    //      ? drawCoreAnalysisCircles()
+    //      : runBufferAnalysis(evt.coordinate);
+    //  }
+    //       if (bufferRef.current > 0) {
+    //         runBufferAnalysis(evt.coordinate);
+    //       }
+    //     }
+    //   };
     if (bufferEnabledRef.current) {
       selectedRef.current.forEach((type) => {
         fetchAnalysis(type, lat, lon);
+        fetchCoreAnalysis(type, lat, lon);
       });
 
       if (bufferRef.current > 0) {
-        runBufferAnalysis(evt.coordinate);
+        if (coreAnalysisActiveRef.current) {
+          drawCoreAnalysisCircles();
+        } else {
+          runBufferAnalysis(evt.coordinate);
+        }
       }
-    } else {
-      bufferLayerRef.current.getSource().clear();
     }
   };
+
+  const drawCoreAnalysisCircles = () => {
+    const coordinate = lastClickedCoordinateRef.current;
+
+    if (!coordinate || !bufferLayerRef.current) return;
+
+    const totalDistance = bufferRef.current * 1000;
+    if (totalDistance <= 0) return;
+
+    const aoiFeatures = aoiLayerRef.current?.getSource()?.getFeatures();
+    if (!aoiFeatures || aoiFeatures.length === 0) return;
+
+    const aoiGeometry = aoiFeatures[0].getGeometry();
+    if (!aoiGeometry.intersectsCoordinate(coordinate)) return;
+
+    const source = bufferLayerRef.current.getSource();
+    source.clear();
+
+    const format = new GeoJSON();
+    const coord4326 = transform(coordinate, "EPSG:3857", "EPSG:4326");
+    const point = turf.point(coord4326);
+
+    const aoiGeoJSON3857 = format.writeFeatureObject(aoiFeatures[0]);
+    const aoiGeoJSON4326 = turf.toWgs84(aoiGeoJSON3857);
+
+    const circleColors = [
+      { stroke: "green", fill: "rgba(0, 128, 0, 0.18)" },
+      { stroke: "yellow", fill: "rgba(255, 255, 0, 0.18)" },
+      { stroke: "blue", fill: "rgba(0, 0, 255, 0.18)" },
+      { stroke: "red", fill: "rgba(255, 0, 0, 0.18)" },
+    ];
+
+    [1, 2, 3, 4].forEach((step) => {
+      const ringDistance = (totalDistance / 4) * step;
+
+      const ringBuffer = turf.buffer(point, ringDistance / 1000, {
+        units: "kilometers",
+      });
+
+      const clipped = turf.intersect(
+        turf.featureCollection([ringBuffer, aoiGeoJSON4326]),
+      );
+
+      if (!clipped) return;
+
+      const clipped3857 = turf.toMercator(clipped);
+      const circleFeature = format.readFeature(clipped3857);
+
+      circleFeature.setStyle(
+        new Style({
+          stroke: new Stroke({
+            color: circleColors[step - 1].stroke,
+            width: step === 4 ? 3 : 2,
+          }),
+          fill: new Fill({
+            color: circleColors[step - 1].fill,
+          }),
+        }),
+      );
+
+      source.addFeature(circleFeature);
+    });
+  };
+
+  ////************************************** ***********/
+  useEffect(() => {
+    const handleCoreAnalysis = () => {
+      const coordinate = lastClickedCoordinateRef.current;
+      if (!coordinate) return;
+      coreAnalysisActiveRef.current = true;
+
+      const [lon, lat] = toLonLat(coordinate);
+
+      drawCoreAnalysisCircles();
+
+      selectedRef.current.forEach((type) => {
+        fetchCoreAnalysis(type, lat, lon);
+      });
+    };
+    const handleCloseCoreAnalysis = () => {
+      coreAnalysisActiveRef.current = false;
+
+      const coordinate = lastClickedCoordinateRef.current;
+
+      if (!coordinate || !bufferLayerRef.current) return;
+
+      if (bufferRef.current > 0) {
+        runBufferAnalysis(coordinate);
+      } else {
+        bufferLayerRef.current.getSource().clear();
+      }
+    };
+
+    window.addEventListener("run-core-analysis", handleCoreAnalysis);
+    window.addEventListener("close-core-analysis", handleCloseCoreAnalysis);
+
+    return () => {
+      window.removeEventListener(
+        "close-core-analysis",
+        handleCloseCoreAnalysis,
+      );
+      window.removeEventListener("run-core-analysis", handleCoreAnalysis);
+    };
+  }, []);
 
   // -----------------------------
   // SWIPE CONTROL
@@ -645,17 +1071,23 @@ const drawMLPolygons = (spaces) => {
   const getIcon = (type) => {
     switch (type) {
       case "toilets_sanitation":
-        return "https://cdn-icons-png.flaticon.com/512/684/684908.png";
+        return ToiletSantation;
+
       case "police_station":
-        return "https://cdn-icons-png.flaticon.com/512/149/149060.png";
+        return PoliceStation; // "https://cdn-icons-png.flaticon.com/512/149/149060.png";
+
       case "parking_loc":
-        return "https://cdn-icons-png.flaticon.com/512/854/854878.png";
+        return Parking; // "https://cdn-icons-png.flaticon.com/512/854/854878.png";
+
       case "road_network3":
         return "https://cdn-icons-png.flaticon.com/512/684/684809.png";
+
       case "temple_ujjain":
-        return "https://cdn-icons-png.flaticon.com/512/3176/3176292.png";
+        return Om; //
+
       case "junction":
-        return "https://cdn-icons-png.flaticon.com/512/1483/1483336.png";
+        return Junction;
+
       default:
         return "https://cdn-icons-png.flaticon.com/512/252/252025.png";
     }
@@ -740,33 +1172,19 @@ const drawMLPolygons = (spaces) => {
 
     findFeaturesInsideBuffer(extent);
   };
-const runMLBuffer = (x, y, radiusMeters) => {
-  if (!mapObj.current) return;
 
-  // 🔁 convert to map projection
-  const coordinate = transform([x, y], "EPSG:32643", "EPSG:3857");
+  const runMLBuffer = (x, y, radiusMeters, isProjected = false) => {
+    if (!mapObj.current) return;
 
-  const circleGeom = new Circle(coordinate, radiusMeters);
+    const center = isProjected
+      ? [x, y]
+      : transform([x, y], "EPSG:32643", "EPSG:3857");
+    const bufferGeom = new Circle(center, radiusMeters);
 
-  const aoiFeatures = aoiLayerRef.current.getSource().getFeatures();
+    drawBufferCircle(center, radiusMeters);
+    bufferGeometryRef.current = bufferGeom;
+  };
 
-  if (!aoiFeatures.length) return;
-
-  const aoiGeometry = aoiFeatures[0].getGeometry();
-
-  // optional: check inside AOI
-  if (!aoiGeometry.intersectsCoordinate(coordinate)) {
-    console.log("Outside AOI");
-    return;
-  }
-
-  // 🔥 reuse your existing function
-  drawBufferCircle(coordinate, radiusMeters);
-
-  const extent = circleGeom.getExtent();
-
-  findFeaturesInsideBuffer(extent);
-};
   const findFeaturesInsideBuffer = (extent) => {
     if (!mapObj.current) return;
 
@@ -812,6 +1230,35 @@ const runMLBuffer = (x, y, radiusMeters) => {
         }
       });
   };
+  /************************ */
+  const fetchCoreAnalysis = (type, lat, lon) => {
+    fetch(API.coreAnalysis, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tableName: type,
+        latitude: String(lat),
+        longitude: String(lon),
+        bufferRadius: String(bufferRef.current * 1000),
+      }),
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.status === "success" && Array.isArray(res.data)) {
+          setAnalysisData((prev) => ({
+            ...prev,
+            [type]: {
+              ...(prev[type] || {}),
+              coreZones: [...res.data].sort((a, b) => a.zone - b.zone),
+            },
+          }));
+        }
+      })
+      .catch(console.error);
+  };
+  /******** */
 
   // -----------------------------
   // AOI API
@@ -926,6 +1373,13 @@ const runMLBuffer = (x, y, radiusMeters) => {
       anchor: [0.5, 1],
     }),
   });
+  //****************base map chnage handler************** */
+  const handleBaseMapChange = (type) => {
+    setBaseMapType(type);
+    streetLayerRef.current.setVisible(type === "street");
+    satelliteLayerRef.current.setVisible(type === "satellite");
+  };
+  /************* */
 
   // -----------------------------
   // UI
@@ -968,14 +1422,35 @@ const runMLBuffer = (x, y, radiusMeters) => {
             {/* Header */}
             <Stack
               direction="row"
-              alignItems="center"
+              alignItems="flex-start"
               justifyContent="space-between"
               mb={1}
               borderBottom={1}
             >
-              <Typography variant="subtitle1" fontWeight="bold">
-                Scenerio Sanitation
-              </Typography>
+              <Stack spacing={0.2}>
+                {/* Heading */}
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Amenity Distance
+                </Typography>
+
+                {/* Address line in new row */}
+                <Typography variant="body2" fontWeight={500}>
+                  {[
+                    popupInfo?.Building,
+                    popupInfo?.Landmark,
+                    popupInfo?.Road,
+                    popupInfo?.Locality,
+                  ]
+                    .filter(
+                      (item) =>
+                        item !== null &&
+                        item !== undefined &&
+                        String(item).trim() !== "",
+                    )
+                    .map((item) => String(item).trim())
+                    .join(", ")}
+                </Typography>
+              </Stack>
 
               <IconButton
                 size="small"
@@ -1017,6 +1492,31 @@ const runMLBuffer = (x, y, radiusMeters) => {
             </Stack>
           </Paper>
         )}
+      </div>
+
+      {/*========================== base map switcher ==========================*/}
+      <div className="absolute left-4 bottom-4 z-[999] bg-white rounded-lg shadow-lg border p-1 flex gap-1">
+        <button
+          onClick={() => handleBaseMapChange("street")}
+          className={`px-3 py-2 text-xs font-semibold rounded-md transition ${
+            baseMapType === "street"
+              ? "bg-[#133b5c] text-white"
+              : "text-gray-700 hover:bg-gray-100"
+          }`}
+        >
+          Map
+        </button>
+
+        <button
+          onClick={() => handleBaseMapChange("satellite")}
+          className={`px-3 py-2 text-xs font-semibold rounded-md transition ${
+            baseMapType === "satellite"
+              ? "bg-[#133b5c] text-white"
+              : "text-gray-700 hover:bg-gray-100"
+          }`}
+        >
+          Satellite
+        </button>
       </div>
 
       {/* LEGEND CARD */}
