@@ -178,7 +178,8 @@ export default function Sidebar({
                       <div className="ml-5 mt-1 space-y-1 text-xs">
                         {[
                           { key: "demand", label: "Demand" },
-                          { key: "supply", label: "Supply" },
+                          { key: "supply", label: "Supply Gap" },
+                          { key: "open_area",label:"Empty Area" },
                         ].map((item) => (
                           <label
                             key={item.key}
@@ -616,3 +617,4 @@ export default function Sidebar({
     </div>
   );
 }
+
