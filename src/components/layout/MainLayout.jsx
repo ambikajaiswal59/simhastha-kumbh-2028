@@ -352,12 +352,13 @@ export default function MainLayout() {
   };
 
   const handleBufferEnabled = (mode) => {
-    if (mode === "analysis") {
+    if (mode === "analysis" || mode === "ml") {
       bufferEnabledRef.current = true;
-    } else if (mode === "ml") {
-      bufferEnabledRef.current = true;
-    }else if(mode === null){
+    } else if (mode === null) {
       bufferEnabledRef.current = false;
+
+      // 🔹 Also clear any existing buffer & popup on the map
+      window.dispatchEvent(new CustomEvent("clear-buffer-graphics"));
     }
   };
 

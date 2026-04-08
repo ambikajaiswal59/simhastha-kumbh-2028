@@ -661,14 +661,31 @@ const loadBottleneckData = async (radius, zone) => {
   };
 
 const clearBuffer = () => {
-  // ❌ DO NOT clear ML buffer
- 
-
+  // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
   if (!bufferLayerRef.current) return;
 
   bufferLayerRef.current.getSource().clear();
   bufferGeometryRef.current = null;
 };
+
+// When buffer is globally disabled (both toggles OFF), clear buffer + popup
+useEffect(() => {
+  const handleClear = () => {
+    clearBuffer();
+
+    if (overlayRef.current) {
+      overlayRef.current.setPosition(undefined);
+    }
+
+    if (clickMarkerLayerRef.current) {
+      const src = clickMarkerLayerRef.current.getSource();
+      src && src.clear();
+    }
+  };
+
+  window.addEventListener("clear-buffer-graphics", handleClear);
+  return () => window.removeEventListener("clear-buffer-graphics", handleClear);
+}, []);
 
   // -----------------------------
   // LAYER FACTORY 🔥

@@ -146,6 +146,7 @@ export default function Sidebar({
     setWeights(updated);
   };
   const hasSitePriority = analysisLayers.site_priority;
+  const isMLUIBlocked = bufferValue.analysis.enabled || !bufferValue.ml.enabled;
 
   return (
     <div className="w-72 h-full flex flex-col text-white bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
@@ -278,16 +279,28 @@ export default function Sidebar({
                       setBufferValue((prev) => ({
                         ...prev,
                         analysis: { ...prev.analysis, enabled },
+                        // If Analysis is ON, ML buffer must be OFF
+                        ml: { ...prev.ml, enabled: enabled ? false : prev.ml.enabled },
                       }));
 
                       if (enabled) {
                         setActiveBufferType("analysis");
                         handleBufferEnabled("analysis");
 
-                        // reset ML (optional - remove if you want both ON)
-                        setBufferValue((prev) => ({
+                        // Hard-reset ML selections so map effects stop immediately
+                        setAnalysisLayers((prev) => ({
                           ...prev,
-                          ml: { ...prev.ml, enabled: false },
+                          emptySpace: false,
+                          bottleneck: false,
+                        }));
+
+                        // optional reset
+                        setBottleneckZone("ALL");
+
+                        // keep UI consistent
+                        setAccordionOpen((prev) => ({
+                          ...prev,
+                          mlLayer: false,
                         }));
                       } else {
                         setActiveBufferType(null);
@@ -315,30 +328,28 @@ export default function Sidebar({
                   </span>
                   <button
                     onClick={() => {
-                      setBufferValue((prev) => {
-                        const enabled = !prev.ml.enabled;
+                      const isCurrentlyOn = bufferValue.ml.enabled;
 
-                        return {
-                          ...prev,
-                          ml: { ...prev.ml, enabled },
-                          analysis: { ...prev.analysis, enabled: false },
-                        };
-                      });
+                      // Toggle ML buffer + force Analysis buffer OFF
+                      setBufferValue((prev) => ({
+                        ...prev,
+                        ml: { ...prev.ml, enabled: !isCurrentlyOn },
+                        analysis: { ...prev.analysis, enabled: false },
+                      }));
 
-                      const isTurningOff = bufferValue.ml.enabled; // current state BEFORE toggle
-
-                      // ✅ If turning OFF → reset everything
-                      if (isTurningOff) {
+                      if (isCurrentlyOn) {
+                        // Turning ML OFF → clear ML selections + disable buffer
                         setAnalysisLayers({
                           emptySpace: false,
                           bottleneck: false,
                         });
 
-                        setBottleneckZone("ALL"); // optional reset
+                        setBottleneckZone("ALL");
                         setActiveBufferType(null);
                         handleBufferEnabled(null);
                       } else {
-                        // ✅ If turning ON → open ML UI
+                        // Turning ML ON → enable ML buffer mode + open ML UI
+                        handleBufferEnabled("ml");
                         setActiveBufferType("ml");
 
                         setAccordionOpen((prev) => ({
@@ -466,7 +477,9 @@ export default function Sidebar({
                     <input
                       type="checkbox"
                       checked={analysisLayers.emptySpace}
+                      disabled={isMLUIBlocked}
                       onChange={() => {
+                        if (isMLUIBlocked) return;
                         setAnalysisLayers((prev) => ({
                           ...prev,
                           emptySpace: !prev.emptySpace,
@@ -492,7 +505,9 @@ export default function Sidebar({
                     <input
                       type="checkbox"
                       checked={analysisLayers.bottleneck}
+                      disabled={isMLUIBlocked}
                       onChange={(e) => {
+                        if (isMLUIBlocked) return;
                         const checked = e.target.checked;
 
                         setAnalysisLayers((prev) => ({
