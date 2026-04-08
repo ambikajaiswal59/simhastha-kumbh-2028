@@ -27,7 +27,7 @@ export default function Sidebar({
   });
 
   const [gridSize, updateGridSize] = useState(50);
-  const [activeBufferType, setActiveBufferType] = useState("analysis");
+  const [activeBufferType, setActiveBufferType] = useState("");
   const [weightsState, updateWeights] = useState({
     temple: 5,
     parking: 3,
@@ -87,6 +87,29 @@ export default function Sidebar({
       .catch(console.error);
   }, []);
 
+  useEffect(() => {
+    const isAnyMLLayerSelected =
+      analysisLayers.emptySpace || analysisLayers.bottleneck;
+
+    if (isAnyMLLayerSelected) {
+      setBufferValue((prev) => ({
+        ...prev,
+        ml: { ...prev.ml, enabled: true },
+        analysis: { ...prev.analysis, enabled: false },
+      }));
+
+      setActiveBufferType("ml");
+
+      // 🔥 sync UI
+      setAccordionOpen((prev) => ({
+        ...prev,
+        mlLayer: true,
+        buffer: true,
+        layers: false,
+      }));
+    }
+  }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
+
   const handleSelect = (layer) => {
     let updated;
 
@@ -123,6 +146,7 @@ export default function Sidebar({
     setWeights(updated);
   };
   const hasSitePriority = analysisLayers.site_priority;
+  const isMLUIBlocked = bufferValue.analysis.enabled || !bufferValue.ml.enabled;
 
   return (
     <div className="w-72 h-full flex flex-col text-white bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
@@ -222,148 +246,205 @@ export default function Sidebar({
           </div>
         </div>
         {/**=====================  Buffer Analysis ============================*/}
-
         <div>
+          {/* ===== ACCORDION HEADER ===== */}
           <button
             onClick={() => toggleAccordion("buffer")}
             className="w-full flex justify-between items-center 
-      bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg 
-      text-orange-300 font-semibold text-sm border border-white/10 transition"
+                bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg 
+                text-orange-300 font-semibold text-sm border border-white/10 transition"
           >
             <span>Buffer Analysis</span>
             <span>{accordionOpen.buffer ? "▾" : "▸"}</span>
           </button>
 
+          {/* ===== ACCORDION BODY ===== */}
           <div
             className={`mt-3 overflow-hidden transition-all duration-300 ${
-              accordionOpen.buffer ? "max-h-[500px]" : "max-h-0"
+              accordionOpen.buffer ? "max-h-[600px]" : "max-h-0"
             }`}
           >
             <div className="mt-3 p-4 bg-white/5 rounded-xl border border-white/10 space-y-5">
-              {/* ===== TOGGLE MODE: Analysis / AI-ML ===== */}
-              <div>
-                <h4 className="text-xs uppercase text-orange-300 mb-2">
-                  Buffer Mode
-                </h4>
+              {/* ===== TOGGLES ===== */}
+              <div className="space-y-3">
+                {/* ANALYSIS TOGGLE */}
+                <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10">
+                  <span className="text-sm text-cyan-300 flex items-center gap-2">
+                    Analysis
+                  </span>
 
-                <div className="flex bg-white/10 rounded-lg p-1">
-                  {/* ANALYSIS BUTTON */}
                   <button
                     onClick={() => {
-                      debugger
-                      console.log("Analysis buffer clicked");
+                      const enabled = !bufferValue.analysis.enabled;
 
-                      setActiveBufferType("analysis"); // always set active
-
-                      // Enable analysis buffer and disable ML buffer
                       setBufferValue((prev) => ({
                         ...prev,
-                        analysis: { ...prev.analysis, enabled: true },
-                        ml: { ...prev.ml, enabled: false },
+                        analysis: { ...prev.analysis, enabled },
+                        // If Analysis is ON, ML buffer must be OFF
+                        ml: { ...prev.ml, enabled: enabled ? false : prev.ml.enabled },
                       }));
 
-                      handleBufferEnabled("analysis"); // call with mode
+                      if (enabled) {
+                        setActiveBufferType("analysis");
+                        handleBufferEnabled("analysis");
 
-                      // Reset AI/ML features
-                      setAnalysisLayers((prev) => ({
-                        ...prev,
-                        emptySpace: false,
-                        bottleneck: false,
-                      }));
+                        // Hard-reset ML selections so map effects stop immediately
+                        setAnalysisLayers((prev) => ({
+                          ...prev,
+                          emptySpace: false,
+                          bottleneck: false,
+                        }));
 
-                      setBottleneckZone("ALL");
+                        // optional reset
+                        setBottleneckZone("ALL");
+
+                        // keep UI consistent
+                        setAccordionOpen((prev) => ({
+                          ...prev,
+                          mlLayer: false,
+                        }));
+                      } else {
+                        setActiveBufferType(null);
+                        handleBufferEnabled(null);
+                      }
                     }}
-                    className={`flex-1 py-1 text-xs rounded-md transition ${
-                      activeBufferType === "analysis"
-                        ? "bg-cyan-500 text-white"
-                        : "text-gray-300 hover:bg-white/20"
+                    className={`w-10 h-5 flex items-center rounded-full p-1 transition ${
+                      bufferValue.analysis.enabled
+                        ? "bg-cyan-500 shadow-[0_0_8px_rgba(34,211,238,0.6)]"
+                        : "bg-gray-500"
                     }`}
                   >
-                    Analysis
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full transition ${
+                        bufferValue.analysis.enabled ? "translate-x-5" : ""
+                      }`}
+                    />
                   </button>
+                </div>
 
-                  {/* AI/ML BUTTON */}
+                {/* AI/ML TOGGLE */}
+                <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10">
+                  <span className="text-sm text-green-300 flex items-center gap-2">
+                    AI / ML
+                  </span>
                   <button
                     onClick={() => {
-                      console.log("AI/ML buffer clicked");
+                      const isCurrentlyOn = bufferValue.ml.enabled;
 
-                      setActiveBufferType("ml"); // always set active
-
-                      // Enable ML buffer and disable analysis buffer
+                      // Toggle ML buffer + force Analysis buffer OFF
                       setBufferValue((prev) => ({
                         ...prev,
-                        ml: { ...prev.ml, enabled: true },
+                        ml: { ...prev.ml, enabled: !isCurrentlyOn },
                         analysis: { ...prev.analysis, enabled: false },
                       }));
 
-                      handleBufferEnabled("ml"); // call with mode
+                      if (isCurrentlyOn) {
+                        // Turning ML OFF → clear ML selections + disable buffer
+                        setAnalysisLayers({
+                          emptySpace: false,
+                          bottleneck: false,
+                        });
 
-                      // Reset analysis features
-                      setAnalysisLayers((prev) => ({
-                        ...prev,
-                        demand: false,
-                        supply: false,
-                        site_priority: false,
-                      }));
+                        setBottleneckZone("ALL");
+                        setActiveBufferType(null);
+                        handleBufferEnabled(null);
+                      } else {
+                        // Turning ML ON → enable ML buffer mode + open ML UI
+                        handleBufferEnabled("ml");
+                        setActiveBufferType("ml");
+
+                        setAccordionOpen((prev) => ({
+                          ...prev,
+                          mlLayer: true,
+                          layers: false,
+                          buffer: false,
+                        }));
+                      }
                     }}
-                    className={`flex-1 py-1 text-xs rounded-md transition ${
-                      activeBufferType === "ml"
-                        ? "bg-green-500 text-white"
-                        : "text-gray-300 hover:bg-white/20"
+                    className={`w-10 h-5 flex items-center rounded-full p-1 transition ${
+                      bufferValue.ml.enabled
+                        ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                        : "bg-gray-500"
                     }`}
                   >
-                    AI/ML
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full transition ${
+                        bufferValue.ml.enabled ? "translate-x-5" : ""
+                      }`}
+                    />
                   </button>
                 </div>
               </div>
 
-              {/* ===== COMMON BUFFER SLIDER ===== */}
-              <div className="border-t border-white/10 pt-4">
+              {/* ===== BUFFER SLIDER ===== */}
+              <div className=" pt-4">
                 <h4 className="text-xs uppercase text-orange-300 mb-2">
                   Buffer Distance
                 </h4>
 
-                <input
-                  type="range"
-                  min="100"
-                  max="500"
-                  step="50"
-                  value={
-                    activeBufferType === "analysis"
-                      ? bufferValue.analysis.value
-                      : bufferValue.ml.value
-                  }
-                  onChange={(e) => {
-                    const meters = Number(e.target.value);
+                {(() => {
+                  const isAnalysisActive = bufferValue.analysis.enabled;
 
-                    if (activeBufferType === "analysis") {
-                      setBufferValue((prev) => ({
-                        ...prev,
-                        analysis: {
-                          ...prev.analysis,
-                          value: meters,
-                          enabled: true,
-                        },
-                      }));
-                    } else {
-                      setBufferValue((prev) => ({
-                        ...prev,
-                        ml: { ...prev.ml, value: meters, enabled: true },
-                      }));
-                    }
+                  const isMLActive =
+                    bufferValue.ml.enabled &&
+                    (analysisLayers.emptySpace || analysisLayers.bottleneck);
 
-                    // Single source of truth for map buffer
-                    setBuffer(meters / 1000);
-                  }}
-                  className="w-full accent-orange-400"
-                />
+                  const isAnyActive = isAnalysisActive || isMLActive;
 
-                <div className="text-center mt-2 text-xs bg-white/10 px-2 py-1 rounded">
-                  {activeBufferType === "analysis"
+                  const activeValue = bufferValue.analysis.enabled
                     ? bufferValue.analysis.value
-                    : bufferValue.ml.value}{" "}
-                  meters
-                </div>
+                    : bufferValue.ml.value;
+
+                  return (
+                    <>
+                      <input
+                        type="range"
+                        min="100"
+                        max="1000"
+                        step="50"
+                        disabled={!isAnyActive}
+                        value={activeValue}
+                        onChange={(e) => {
+                          const meters = Number(e.target.value);
+
+                          if (bufferValue.analysis.enabled) {
+                            setBufferValue((prev) => ({
+                              ...prev,
+                              analysis: {
+                                ...prev.analysis,
+                                value: meters,
+                              },
+                            }));
+                          }
+
+                          if (bufferValue.ml.enabled) {
+                            setBufferValue((prev) => ({
+                              ...prev,
+                              ml: {
+                                ...prev.ml,
+                                value: meters,
+                              },
+                            }));
+                          }
+
+                          // Map buffer (single source)
+                          setBuffer(meters / 1000);
+                        }}
+                        className={`w-full ${
+                          isAnyActive
+                            ? "accent-orange-400"
+                            : "opacity-40 cursor-not-allowed"
+                        }`}
+                      />
+
+                      <div className="text-center mt-2 text-xs bg-white/10 px-2 py-1 rounded">
+                        {isAnyActive
+                          ? `${activeValue} meters`
+                          : "Buffer Disabled"}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -392,19 +473,27 @@ export default function Sidebar({
                 </h4>
 
                 {/* EMPTY SPACE */}
-                <label className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10">
+                <label className="flex items-center justify-between bg-white/5 px-3 py-2 mb-3 rounded-lg border border-white/10">
                   <span className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={analysisLayers.emptySpace}
+                      disabled={isMLUIBlocked}
                       onChange={() => {
+                        if (isMLUIBlocked) return;
                         setAnalysisLayers((prev) => ({
                           ...prev,
                           emptySpace: !prev.emptySpace,
                         }));
 
                         setActiveBufferType("ml");
-                        handleBufferEnabled(true);
+
+                        // 🔥 ensure section open
+                        setAccordionOpen((prev) => ({
+                          ...prev,
+                          mlLayer: true,
+                          layers: false,
+                        }));
                       }}
                     />
                     <span>Empty Space</span>
@@ -417,7 +506,9 @@ export default function Sidebar({
                     <input
                       type="checkbox"
                       checked={analysisLayers.bottleneck}
+                      disabled={isMLUIBlocked}
                       onChange={(e) => {
+                        if (isMLUIBlocked) return;
                         const checked = e.target.checked;
 
                         setAnalysisLayers((prev) => ({

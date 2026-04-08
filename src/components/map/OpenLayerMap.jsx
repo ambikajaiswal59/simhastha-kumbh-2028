@@ -39,7 +39,11 @@ import { Paper, Typography, Stack, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 import LocationIcon from "../../assets/location.svg";
-import omIcon from "../../assets/Icon/om.svg";
+import Om from "../../assets/Icon/temple.svg";
+import ToiletSantation from "../../assets/Icon/toilets.svg";
+import PoliceStation from "../../assets/Icon/police.svg";
+import Parking from "../../assets/Icon/parking.svg";
+import Junction from "../../assets/Icon/junction.svg";
 
 export default function OpenLayerMap({
   buffer,
@@ -88,7 +92,7 @@ export default function OpenLayerMap({
  const openAreaDelayRef = useRef(null);
   //////************************************* */
   const lastClickedCoordinateRef = useRef(null);
-     const coreAnalysisActiveRef = useRef(false);
+  const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   // -----------------------------
   // ICON STYLE
@@ -100,7 +104,7 @@ export default function OpenLayerMap({
       return new Style({
         image: new Icon({
           src: getIcon(type),
-          scale: 0.05,
+          scale: 0.3,
         }),
       });
     }
@@ -108,7 +112,7 @@ export default function OpenLayerMap({
     if (geometryType === "LineString" || geometryType === "MultiLineString") {
       return new Style({
         stroke: new Stroke({
-          color: "#ff6600",
+          color: "#E9B63B",
           width: 3,
         }),
       });
@@ -546,7 +550,6 @@ const openAreaLayerStyle = new Style({
   }, []);
 
   useEffect(() => {
-
     // if (!mlBuffer?.enabled || !mapReady) return;
 
     // ✅ ADD THIS CHECK
@@ -574,29 +577,48 @@ const openAreaLayerStyle = new Style({
       clearBuffer(); // ✅ THIS FIXES IT
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-  const fetchData = async () => {
+const fetchData = async () => {
+  try {
+    const res = await fetch(API.emptySpaces(mlBuffer.value));
+    const data = await res.json();
 
-    try {
-      const res = await fetch(API.emptySpaces(mlBuffer.value));
-      const data = await res.json();
+    const spaces = data.data;
 
-      if (data.data.length > 0) {
-        const center = data.data[0];
+    if (spaces.length > 0) {
+      const format = new WKT();
 
-        // ✅ CREATE BUFFER FIRST
-        runMLBuffer(
-          Number(center.centroid_x),
-          Number(center.centroid_y),
-          mlBuffer.value,
-        );
-      }
+      let combinedExtent = null;
 
-      // ✅ THEN DRAW (with buffer ready)
-      drawMLPolygons(data.data);
-    } catch (err) {
-      console.error(err);
+      spaces.forEach((space) => {
+        const geometry = format.readGeometry(space.space_wkt, {
+          dataProjection: "EPSG:32643",
+          featureProjection: "EPSG:3857",
+        });
+
+        const extent = geometry.getExtent();
+
+        if (!combinedExtent) {
+          combinedExtent = extent;
+        } else {
+          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+        }
+      });
+
+      // ✅ SAME centroid logic as bottleneck
+      const center = getCenter(combinedExtent);
+
+      runMLBuffer(center[0], center[1], mlBuffer.value, true);
     }
-  };
+
+    drawMLPolygons(spaces);
+
+  } catch (err) {
+    console.error(err);
+  }
+};
   const drawMLPolygons = (spaces) => {
     if (!mlLayerRef.current) return;
 
@@ -638,45 +660,65 @@ const openAreaLayerStyle = new Style({
   // -----------------------------
   // Bottleneck Layer
   // -----------------------------
+useEffect(() => {
+  if (!analysisLayers.bottleneck) {
+    bottleneckLayerRef.current.getSource().clear();
+    bottleneckLayerRef.current.setVisible(false);
+    return;
+  }
 
-  useEffect(() => {
-    // if (!mapReady || !mlBuffer?.enabled) return;
+  loadBottleneckData(mlBuffer.value, bottleneckZone);
 
-    if (analysisLayers.bottleneck) {
-      // ✅ ALWAYS create buffer first
-      //createBufferFromMapCenter();
+}, [
+  analysisLayers.bottleneck,
+  mlBuffer.value,
+  mlBuffer.enabled,
+  bottleneckZone,
+]);
 
-      // ✅ THEN load data
-      loadBottleneckData(mlBuffer.value, bottleneckZone);
-    } else {
-      bottleneckLayerRef.current.getSource().clear();
-      bottleneckLayerRef.current.setVisible(false);
+const loadBottleneckData = async (radius, zone) => {
+  try {
+    const response = await fetch(
+      API.bottlenecks(radius, zone)
+    );
+    const result = await response.json();
+    const data = result.data;
+
+    if (data.length > 0) {
+      const format = new WKT();
+
+      let combinedExtent = null;
+
+      data.forEach((item) => {
+        const geometry = format.readGeometry(item.space_wkt, {
+          dataProjection: "EPSG:32643",
+          featureProjection: "EPSG:3857",
+        });
+
+        const extent = geometry.getExtent();
+
+        if (!combinedExtent) {
+          combinedExtent = extent;
+        } else {
+          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+        }
+      });
+
+      // ✅ FINAL CENTER
+      const center = getCenter(combinedExtent);
+
+      runMLBuffer(center[0], center[1], radius, true);
     }
-  }, [
-    analysisLayers.bottleneck,
-    mlBuffer.value,
-    mlBuffer.enabled,
-    bottleneckZone,
-  ]);
-  // const createBufferFromMapCenter = () => {
-  //   const center = mapObj.current.getView().getCenter();
-  //   if (!center) return;
 
-  //   runMLBuffer(center[0], center[1], mlBuffer.value, true);
-  // };
-  const loadBottleneckData = async (radius, zone) => {
+    drawBottleneckFeatures(data);
 
-    try {
-      const response = await fetch(
-        API.bottlenecks(mlBuffer.value, bottleneckZone),
-      );
-      const result = await response.json();
-
-      drawBottleneckFeatures(result.data);
-    } catch (err) {
-      console.error("Bottleneck API error:", err);
-    }
-  };
+  } catch (err) {
+    console.error("Bottleneck API error:", err);
+  }
+};
 
   const drawBottleneckFeatures = (data) => {
     const format = new WKT();
@@ -706,17 +748,36 @@ const openAreaLayerStyle = new Style({
     });
 
     source.addFeatures(filteredFeatures);
-    console.log("Bottleneck features:", filteredFeatures.length);
     bottleneckLayerRef.current.setVisible(true);
     bottleneckLayerRef.current.changed();
   };
 
-  const clearBuffer = () => {
-    if (!bufferLayerRef.current) return;
+const clearBuffer = () => {
+  // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
+  if (!bufferLayerRef.current) return;
 
-    bufferLayerRef.current.getSource().clear();
-    bufferGeometryRef.current = null;
+  bufferLayerRef.current.getSource().clear();
+  bufferGeometryRef.current = null;
+};
+
+// When buffer is globally disabled (both toggles OFF), clear buffer + popup
+useEffect(() => {
+  const handleClear = () => {
+    clearBuffer();
+
+    if (overlayRef.current) {
+      overlayRef.current.setPosition(undefined);
+    }
+
+    if (clickMarkerLayerRef.current) {
+      const src = clickMarkerLayerRef.current.getSource();
+      src && src.clear();
+    }
   };
+
+  window.addEventListener("clear-buffer-graphics", handleClear);
+  return () => window.removeEventListener("clear-buffer-graphics", handleClear);
+}, []);
 
   // -----------------------------
   // LAYER FACTORY 🔥
@@ -768,7 +829,7 @@ const openAreaLayerStyle = new Style({
             bufferEnabledRef.current === false &&
             layerName === "ScenerioSanitation Layer"
           ) {
-            bufferLayerRef.current.getSource().clear();
+
             setAnalysisData({});
             setPopupInfo(properties);
             overlayRef.current.setPosition(evt.coordinate);
@@ -785,6 +846,9 @@ const openAreaLayerStyle = new Style({
             source.addFeature(marker);
 
             found = true;
+          } else {
+            const source = clickMarkerLayerRef.current.getSource();
+            source.clear();
           }
 
           return true; // ✅ break after first valid feature
@@ -808,21 +872,21 @@ const openAreaLayerStyle = new Style({
     // -----------------------------
     // BUFFER ANALYSIS (unchanged)
     // -----------------------------
-//     if (bufferEnabledRef.current) {
-//       selectedRef.current.forEach((type) => {
-//         fetchAnalysis(type, lat, lon);
-//         fetchCoreAnalysis(type, lat, lon);
-//       });
-//  if (bufferRef.current > 0) {
-//    coreAnalysisActiveRef.current
-//      ? drawCoreAnalysisCircles()
-//      : runBufferAnalysis(evt.coordinate);
-//  }
-//       if (bufferRef.current > 0) {
-//         runBufferAnalysis(evt.coordinate);
-//       }
-//     }
-//   };
+    //     if (bufferEnabledRef.current) {
+    //       selectedRef.current.forEach((type) => {
+    //         fetchAnalysis(type, lat, lon);
+    //         fetchCoreAnalysis(type, lat, lon);
+    //       });
+    //  if (bufferRef.current > 0) {
+    //    coreAnalysisActiveRef.current
+    //      ? drawCoreAnalysisCircles()
+    //      : runBufferAnalysis(evt.coordinate);
+    //  }
+    //       if (bufferRef.current > 0) {
+    //         runBufferAnalysis(evt.coordinate);
+    //       }
+    //     }
+    //   };
     if (bufferEnabledRef.current) {
       selectedRef.current.forEach((type) => {
         fetchAnalysis(type, lat, lon);
@@ -838,7 +902,6 @@ const openAreaLayerStyle = new Style({
       }
     }
   };
-
 
   const drawCoreAnalysisCircles = () => {
     const coordinate = lastClickedCoordinateRef.current;
@@ -905,11 +968,10 @@ const openAreaLayerStyle = new Style({
 
   ////************************************** ***********/
   useEffect(() => {
- const handleCoreAnalysis = () => {
-   const coordinate = lastClickedCoordinateRef.current;
-   if (!coordinate) return;
-   coreAnalysisActiveRef.current = true;
-
+    const handleCoreAnalysis = () => {
+      const coordinate = lastClickedCoordinateRef.current;
+      if (!coordinate) return;
+      coreAnalysisActiveRef.current = true;
 
       const [lon, lat] = toLonLat(coordinate);
 
@@ -920,9 +982,9 @@ const openAreaLayerStyle = new Style({
       });
     };
     const handleCloseCoreAnalysis = () => {
-  coreAnalysisActiveRef.current = false;
+      coreAnalysisActiveRef.current = false;
 
-  const coordinate = lastClickedCoordinateRef.current;
+      const coordinate = lastClickedCoordinateRef.current;
 
       if (!coordinate || !bufferLayerRef.current) return;
 
@@ -1126,22 +1188,22 @@ const openAreaLayerStyle = new Style({
   const getIcon = (type) => {
     switch (type) {
       case "toilets_sanitation":
-        return "https://cdn-icons-png.flaticon.com/512/684/684908.png";
+        return ToiletSantation;
 
       case "police_station":
-        return "https://cdn-icons-png.flaticon.com/512/149/149060.png";
+        return PoliceStation; // "https://cdn-icons-png.flaticon.com/512/149/149060.png";
 
       case "parking_loc":
-        return "https://cdn-icons-png.flaticon.com/512/854/854878.png";
+        return Parking; // "https://cdn-icons-png.flaticon.com/512/854/854878.png";
 
       case "road_network3":
         return "https://cdn-icons-png.flaticon.com/512/684/684809.png";
 
       case "temple_ujjain":
-        return omIcon; //
+        return Om; //
 
       case "junction":
-        return "https://cdn-icons-png.flaticon.com/512/1483/1483336.png";
+        return Junction;
 
       default:
         return "https://cdn-icons-png.flaticon.com/512/252/252025.png";
@@ -1315,7 +1377,6 @@ const openAreaLayerStyle = new Style({
   };
   /******** */
 
-
   // -----------------------------
   // AOI API
   // -----------------------------
@@ -1392,7 +1453,6 @@ const openAreaLayerStyle = new Style({
   // SCENERION SANITATION API
   // -----------------------------
   const sanitationScenerio = async () => {
-
     try {
       const res = await fetch(API.sanitation);
       const json = await res.json();

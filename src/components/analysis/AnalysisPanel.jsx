@@ -457,21 +457,23 @@ export default function AnalysisPanel({
         (() => {
           const layer = selectedFeature?.layer?.toLowerCase() || "";
 
+          // Only render details card for ML / Bottleneck layers.
+          if (!layer.includes("bottleneck") && !layer.includes("ml")) {
+            return null;
+          }
+
           return (
             <div className="mb-4 p-4 rounded-xl bg-white/10 border border-white/20">
               {/* TITLE */}
-              {(layer.includes("bottleneck") || layer.includes("ml")) && (
-                <h3 className="text-sm font-bold text-yellow-300 mb-3">
-                  {layer.includes("bottleneck")
-                    ? "Bottleneck Details"
-                    : "Empty Space"}
-                </h3>
-              )}
+              <h3 className="text-sm font-bold text-yellow-300 mb-3">
+                {layer.includes("bottleneck")
+                  ? "Bottleneck Details"
+                  : "Empty Space"}
+              </h3>
 
               {/* ================= BOTTLENECK ================= */}
               {layer.includes("bottleneck") &&
                 (() => {
-                  debugger;
                   const risk = selectedFeature?.risk_class || "LOW";
 
                   return (
@@ -553,13 +555,6 @@ export default function AnalysisPanel({
 
                   return (
                     <div className="space-y-3 text-xs text-white">
-                      {/* <div className="flex justify-between">
-                          <span>Type</span>
-                          <span className="text-green-300 font-semibold">
-                            Empty Space
-                          </span>
-                        </div> */}
-
                       <div className="flex justify-between">
                         <span>Area</span>
                         <span>{area.toFixed(0)} sqm</span>
@@ -585,13 +580,6 @@ export default function AnalysisPanel({
                         <span>Distance</span>
                         <span>{distance} m</span>
                       </div>
-
-                      {/* <div className="flex justify-between text-gray-400">
-                          <span>Location</span>
-                          <span>
-                            {Math.round(x)}, {Math.round(y)}
-                          </span>
-                        </div> */}
                     </div>
                   );
                 })()}

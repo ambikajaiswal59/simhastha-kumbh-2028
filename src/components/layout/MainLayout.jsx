@@ -44,7 +44,7 @@ export default function MainLayout() {
   const [bottleNeckZone, setBottleNeckZone] = useState("ALL");
   const [toiletSheet, setToiletSheet] = useState("");
   const [proximity, setProximity] = useState([]);
-  const bufferEnabledRef = useRef(true);
+  const bufferEnabledRef = useRef(false);
   const [bufferEnabled, setBufferEnabled] = useState(false);
   /*****************************************/
   const sitePriorityTimerRef = useRef(null);
@@ -353,10 +353,13 @@ export default function MainLayout() {
   };
 
   const handleBufferEnabled = (mode) => {
-    if (mode === "analysis") {
+    if (mode === "analysis" || mode === "ml") {
       bufferEnabledRef.current = true;
-    } else if (mode === "ml") {
+    } else if (mode === null) {
       bufferEnabledRef.current = false;
+
+      // 🔹 Also clear any existing buffer & popup on the map
+      window.dispatchEvent(new CustomEvent("clear-buffer-graphics"));
     }
   };
 
