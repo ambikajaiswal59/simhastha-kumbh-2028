@@ -109,7 +109,6 @@ export default function Sidebar({
       }));
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-
   const handleSelect = (layer) => {
     let updated;
 
@@ -123,6 +122,7 @@ export default function Sidebar({
         setAnalysisLayers({
           demand: false,
           supply: false,
+          open_area: false,
         });
       }
     } else {
@@ -196,78 +196,78 @@ export default function Sidebar({
             className={`mt-3 space-y-1 overflow-hidden transition-all duration-300
         ${accordionOpen.layers ? "max-h-[500px]" : "max-h-0"}`}
           >
-            {Array.isArray(layers) &&
-              layers.map((layer) => {
-                const isSelected = selected.find(
-                  (l) => l.table_name === layer.table_name,
-                );
-                return (
-                  <div key={layer.layer_id || layer.table_name}>
-                    {/* MAIN CHECKBOX */}
-                    <label
-                      className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer text-sm
-                  ${
-                    isSelected
-                      ? "bg-white/10 border border-orange-400/20"
-                      : "hover:bg-white/5"
-                  }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={!!isSelected}
-                          onChange={() => handleSelect(layer)}
-                        />
-                        <span>
-                          {layerLabelMap[layer.table_name] || layer.table_name}
-                        </span>
+            {layers.map((layer) => {
+              const isSelected = selected.find(
+                (l) => l.table_name === layer.table_name,
+              );
+
+              return (
+                <div key={layer.layer_id}>
+                  {/* MAIN CHECKBOX */}
+                  <label
+                    className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer text-sm
+                ${
+                  isSelected
+                    ? "bg-white/10 border border-orange-400/20"
+                    : "hover:bg-white/5"
+                }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={!!isSelected}
+                        onChange={() => handleSelect(layer)}
+                      />
+                      <span>{layerLabelMap[layer.table_name]}</span>
+                    </div>
+                  </label>
+
+                  {/* SUB OPTIONS */}
+                  {layer.table_name === "toilets_sanitation" &&
+                    showAnalysisOptions && (
+                      <div className="ml-5 mt-1 space-y-1 text-xs">
+                        {[
+                          { key: "demand", label: "Demand" },
+                          { key: "supply", label: "Supply" },
+                        ].map((item) => (
+                          <label
+                            key={item.key}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={analysisLayers[item.key]}
+                              onChange={(e) =>
+                                setAnalysisLayers((prev) => ({
+                                  ...prev,
+                                  [item.key]: e.target.checked,
+                                }))
+                              }
+                            />
+                            {item.label}
+                          </label>
+                        ))}
+
+                        {hasSitePriority && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={analysisLayers.site_priority}
+                              onChange={(e) =>
+                                setAnalysisLayers((prev) => ({
+                                  ...prev,
+                                  site_priority: e.target.checked,
+                                }))
+                              }
+                            />
+                            Site Priority
+                          </label>
+                        )}
                       </div>
-                    </label>
-                    {/* SUB OPTIONS */}
-                    {layer.table_name === "toilets_sanitation" &&
-                      showAnalysisOptions && (
-                        <div className="ml-5 mt-1 space-y-1 text-xs">
-                          {[
-                            { key: "demand", label: "Demand" },
-                            { key: "supply", label: "Supply" },
-                          ].map((item) => (
-                            <label
-                              key={item.key}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={!!analysisLayers[item.key]}
-                                onChange={(e) =>
-                                  setAnalysisLayers((prev) => ({
-                                    ...prev,
-                                    [item.key]: e.target.checked,
-                                  }))
-                                }
-                              />
-                              {item.label}
-                            </label>
-                          ))}
-                          {hasSitePriority && (
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={!!analysisLayers.site_priority}
-                                onChange={(e) =>
-                                  setAnalysisLayers((prev) => ({
-                                    ...prev,
-                                    site_priority: e.target.checked,
-                                  }))
-                                }
-                              />
-                              Site Priority
-                            </label>
-                          )}
-                        </div>
-                      )}
-                  </div>
-                );
-              })}
+                    )}
+                </div>
+              );
+            })}
           </div>
         </div>
         {/**=====================  Buffer Analysis ============================*/}
@@ -657,4 +657,4 @@ export default function Sidebar({
       </div>
     </div>
   );
-};
+}

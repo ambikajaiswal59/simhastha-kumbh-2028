@@ -157,8 +157,17 @@ export default function AnalysisPanel({
                 </div>
               ),
             },
+            {
+              key: "open_area",
+              label: "Open Area",
+             
+            },
           ].map((btn) => {
-            const isDisabled = btn.key === "supply" && !analysisLayers.demand;
+            // const isDisabled = btn.key === "supply" && !analysisLayers.demand;
+            const isDisabled =
+              (btn.key === "supply" && !analysisLayers.demand) ||
+              (btn.key === "open_area" && !analysisLayers.supply);
+
 
             return (
               <span key={btn.key} className="w-full">
@@ -176,6 +185,10 @@ export default function AnalysisPanel({
                       setShowLandSuitableDropdown(false);
                     }
 
+                    if (btn.key === "open_area" && analysisLayers.open_area) {
+                      setShowLandSuitableDropdown(false);
+                    }
+
                     setAnalysisLayers((prev) => {
                       if (btn.key === "demand") {
                         const nextDemand = !prev.demand;
@@ -190,21 +203,199 @@ export default function AnalysisPanel({
                           site_priority: nextDemand
                             ? prev.site_priority
                             : false,
+                          open_area: nextDemand ? prev.open_area : false,
                         };
                       }
 
-                      const nextSupply = !prev.supply;
+                      if (btn.key === "supply") {
+                        const nextSupply = !prev.supply;
 
-                      return {
-                        ...prev,
-                        supply: nextSupply,
-                        suitable_land: nextSupply ? prev.suitable_land : false,
-                        site_priority: nextSupply ? prev.site_priority : false,
-                      };
+                        return {
+                          ...prev,
+                          supply: nextSupply,
+                          suitable_land: nextSupply
+                            ? prev.suitable_land
+                            : false,
+                          site_priority: nextSupply
+                            ? prev.site_priority
+                            : false,
+                          open_area: nextSupply ? prev.open_area : false,
+                        };
+                      }
+
+                      if (btn.key === "open_area") {
+                        return {
+                          ...prev,
+                          open_area: !prev.open_area,
+                        };
+                      }
+
+                      return prev;
                     });
 
                     setShowAnalysisOptions(true);
                   }}
+                  // onClick={() => {
+                  //   if (isDisabled) return;
+
+                  //   if (btn.key === "demand" && analysisLayers.demand) {
+                  //     setShowLandSuitableDropdown(false);
+                  //   }
+
+                  //   if (btn.key === "supply" && analysisLayers.supply) {
+                  //     setShowLandSuitableDropdown(false);
+                  //   }
+
+                  //   if (btn.key === "open_area" && analysisLayers.open_area) {
+                  //     setShowLandSuitableDropdown(false);
+                  //   }
+
+                  //   setAnalysisLayers((prev) => {
+                  //     if (btn.key === "demand") {
+                  //       const nextDemand = !prev.demand;
+
+                  //       return {
+                  //         ...prev,
+                  //         demand: nextDemand,
+                  //         supply: nextDemand ? prev.supply : false,
+                  //         suitable_land: nextDemand
+                  //           ? prev.suitable_land
+                  //           : false,
+                  //         site_priority: nextDemand
+                  //           ? prev.site_priority
+                  //           : false,
+                  //         open_area: nextDemand ? prev.open_area : false,
+                  //       };
+                  //     }
+
+                  //     if (btn.key === "supply") {
+                  //       const nextSupply = !prev.supply;
+
+                  //       return {
+                  //         ...prev,
+                  //         supply: nextSupply,
+                  //         suitable_land: nextSupply
+                  //           ? prev.suitable_land
+                  //           : false,
+                  //         site_priority: nextSupply
+                  //           ? prev.site_priority
+                  //           : false,
+                  //       };
+                  //     }
+
+                  //     if (btn.key === "open_area") {
+                  //       return {
+                  //         ...prev,
+                  //         open_area: !prev.open_area,
+                  //       };
+                  //     }
+
+                  //     return prev;
+                  //   });
+
+                  //   setShowAnalysisOptions(true);
+                  // }}
+                  // onClick={() => {
+                  //   if (isDisabled) return;
+
+                  //   if (btn.key === "demand" && analysisLayers.demand) {
+                  //     setShowLandSuitableDropdown(false);
+                  //   }
+
+                  //   if (btn.key === "supply" && analysisLayers.supply) {
+                  //     setShowLandSuitableDropdown(false);
+                  //   }
+                  //   if (btn.key === "open_area" && analysisLayers.open_area) {
+                  //     setShowLandSuitableDropdown(fa)
+                  //   }
+                  //     setAnalysisLayers((prev) => {
+                  //       if (btn.key === "demand") {
+                  //         const nextDemand = !prev.demand;
+
+                  //         return {
+                  //           ...prev,
+                  //           demand: nextDemand,
+                  //           supply: nextDemand ? prev.supply : false,
+                  //           suitable_land: nextDemand
+                  //             ? prev.suitable_land
+                  //             : false,
+                  //           site_priority: nextDemand
+                  //             ? prev.site_priority
+                  //             : false,
+                  //         };
+                  //       }
+
+                  //       const nextSupply = !prev.supply;
+
+                  //       return {
+                  //         ...prev,
+                  //         supply: nextSupply,
+                  //         suitable_land: nextSupply
+                  //           ? prev.suitable_land
+                  //           : false,
+                  //         site_priority: nextSupply
+                  //           ? prev.site_priority
+                  //           : false,
+                  //       };
+                  //     });
+
+                  //   setShowAnalysisOptions(true);
+                  // }}
+                  // onClick={() => {
+                  //   if (isDisabled) return;
+
+                  //   if (btn.key === "demand" && analysisLayers.demand) {
+                  //     setShowLandSuitableDropdown(false);
+                  //   }
+
+                  //   if (btn.key === "supply" && analysisLayers.supply) {
+                  //     setShowLandSuitableDropdown(false);
+                  //   }
+
+                  //   setAnalysisLayers((prev) => {
+                  //     if (btn.key === "demand") {
+                  //       const nextDemand = !prev.demand;
+
+                  //       return {
+                  //         ...prev,
+                  //         demand: nextDemand,
+                  //         supply: nextDemand ? prev.supply : false,
+                  //         suitable_land: nextDemand
+                  //           ? prev.suitable_land
+                  //           : false,
+                  //         site_priority: nextDemand
+                  //           ? prev.site_priority
+                  //           : false,
+                  //       };
+                  //     }
+
+                  //     if (btn.key === "supply") {
+                  //       const nextSupply = !prev.supply;
+
+                  //       return {
+                  //         ...prev,
+                  //         supply: nextSupply,
+                  //         suitable_land: nextSupply
+                  //           ? prev.suitable_land
+                  //           : false,
+                  //         site_priority: nextSupply
+                  //           ? prev.site_priority
+                  //           : false,
+                  //       };
+                  //     }
+
+                  //     if (btn.key === "open_area") {
+                  //       return {
+                  //         ...prev,
+                  //         open_area: !prev.open_area,
+                  //       };
+                  //     }
+
+                  //     return prev;
+                  //   });
+
+                  //   setShowAnalysisOptions(true);
+                  // }}
                   className={`w-full px-3 py-2 text-sm rounded-md border border-white transition-all duration-200 flex items-center justify-between ${
                     isDisabled
                       ? "bg-[#133b5c] text-gray-500 opacity-60 cursor-not-allowed"
