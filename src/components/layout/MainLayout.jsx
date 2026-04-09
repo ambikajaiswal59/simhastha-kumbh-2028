@@ -411,7 +411,7 @@ export default function MainLayout() {
 
         {/* RIGHT PANEL */}
         <Suspense fallback={<div>Loading...</div>}>
-          <div className="w-[350px] h-full overflow-y-auto bg-[#0f2a44]">
+          <div className="w-[280px] h-full overflow-y-auto bg-[#0f2a44]">
             <AnalysisPanel
               buffer={buffer}
               selectedTypes={selectedTypes}

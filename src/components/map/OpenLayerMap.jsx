@@ -469,7 +469,7 @@ export default function OpenLayerMap({
       return;
     }
 
-    fetchData();
+    fetchEmptySpaces();
   }, [
     mlBuffer?.value,
     mlBuffer?.enabled,
@@ -485,48 +485,78 @@ export default function OpenLayerMap({
       clearBuffer(); // ✅ THIS FIXES IT
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-const fetchData = async () => {
-  try {
-    const res = await fetch(API.emptySpaces(mlBuffer.value));
-    const data = await res.json();
+  const fetchDemandAnalysisLayer = async ({
+    gridSize = 50,
+    weights = {
+      temple: 5,
+      parking: 3,
+      junction: 2,
+      hotel: 2,
+      building: 1,
+    },
+  } = {}) => {
+    try {
+      const res = await fetch("http://192.168.1.27:8000/run-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gridSize,
+          weights,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const data = await res.json();
+      return data.data;
+    } catch (err) {
+      console.error("fetchDemandAnalysisLayer error:", err);
+      return null;
+    }
+  };
+  const fetchEmptySpaces = async () => {
+    try {
+      const res = await fetch(API.emptySpaces(mlBuffer.value));
+      const data = await res.json();
 
-    const spaces = data.data;
+      const spaces = data.data;
 
-    if (spaces.length > 0) {
-      const format = new WKT();
+      if (spaces.length > 0) {
+        const format = new WKT();
 
-      let combinedExtent = null;
+        let combinedExtent = null;
 
-      spaces.forEach((space) => {
-        const geometry = format.readGeometry(space.space_wkt, {
-          dataProjection: "EPSG:32643",
-          featureProjection: "EPSG:3857",
+        spaces.forEach((space) => {
+          const geometry = format.readGeometry(space.space_wkt, {
+            dataProjection: "EPSG:32643",
+            featureProjection: "EPSG:3857",
+          });
+
+          const extent = geometry.getExtent();
+
+          if (!combinedExtent) {
+            combinedExtent = extent;
+          } else {
+            combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+            combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+            combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+            combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+          }
         });
 
-        const extent = geometry.getExtent();
+        // ✅ SAME centroid logic as bottleneck
+        const center = getCenter(combinedExtent);
 
-        if (!combinedExtent) {
-          combinedExtent = extent;
-        } else {
-          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
-          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
-          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
-          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
-        }
-      });
+        runMLBuffer(center[0], center[1], mlBuffer.value, true);
+      }
 
-      // ✅ SAME centroid logic as bottleneck
-      const center = getCenter(combinedExtent);
-
-      runMLBuffer(center[0], center[1], mlBuffer.value, true);
+      drawMLPolygons(spaces);
+    } catch (err) {
+      console.error(err);
     }
-
-    drawMLPolygons(spaces);
-
-  } catch (err) {
-    console.error(err);
-  }
-};
+  };
   const drawMLPolygons = (spaces) => {
     if (!mlLayerRef.current) return;
 
@@ -568,65 +598,61 @@ const fetchData = async () => {
   // -----------------------------
   // Bottleneck Layer
   // -----------------------------
-useEffect(() => {
-  if (!analysisLayers.bottleneck) {
-    bottleneckLayerRef.current.getSource().clear();
-    bottleneckLayerRef.current.setVisible(false);
-    return;
-  }
-
-  loadBottleneckData(mlBuffer.value, bottleneckZone);
-
-}, [
-  analysisLayers.bottleneck,
-  mlBuffer.value,
-  mlBuffer.enabled,
-  bottleneckZone,
-]);
-
-const loadBottleneckData = async (radius, zone) => {
-  try {
-    const response = await fetch(
-      API.bottlenecks(radius, zone)
-    );
-    const result = await response.json();
-    const data = result.data;
-
-    if (data.length > 0) {
-      const format = new WKT();
-
-      let combinedExtent = null;
-
-      data.forEach((item) => {
-        const geometry = format.readGeometry(item.space_wkt, {
-          dataProjection: "EPSG:32643",
-          featureProjection: "EPSG:3857",
-        });
-
-        const extent = geometry.getExtent();
-
-        if (!combinedExtent) {
-          combinedExtent = extent;
-        } else {
-          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
-          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
-          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
-          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
-        }
-      });
-
-      // ✅ FINAL CENTER
-      const center = getCenter(combinedExtent);
-
-      runMLBuffer(center[0], center[1], radius, true);
+  useEffect(() => {
+    if (!analysisLayers.bottleneck) {
+      bottleneckLayerRef.current.getSource().clear();
+      bottleneckLayerRef.current.setVisible(false);
+      return;
     }
 
-    drawBottleneckFeatures(data);
+    loadBottleneckData(mlBuffer.value, bottleneckZone);
+  }, [
+    analysisLayers.bottleneck,
+    mlBuffer.value,
+    mlBuffer.enabled,
+    bottleneckZone,
+  ]);
 
-  } catch (err) {
-    console.error("Bottleneck API error:", err);
-  }
-};
+  const loadBottleneckData = async (radius, zone) => {
+    try {
+      const response = await fetch(API.bottlenecks(radius, zone));
+      const result = await response.json();
+      const data = result.data;
+
+      if (data.length > 0) {
+        const format = new WKT();
+
+        let combinedExtent = null;
+
+        data.forEach((item) => {
+          const geometry = format.readGeometry(item.space_wkt, {
+            dataProjection: "EPSG:32643",
+            featureProjection: "EPSG:3857",
+          });
+
+          const extent = geometry.getExtent();
+
+          if (!combinedExtent) {
+            combinedExtent = extent;
+          } else {
+            combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+            combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+            combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+            combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+          }
+        });
+
+        // ✅ FINAL CENTER
+        const center = getCenter(combinedExtent);
+
+        runMLBuffer(center[0], center[1], radius, true);
+      }
+
+      drawBottleneckFeatures(data);
+    } catch (err) {
+      console.error("Bottleneck API error:", err);
+    }
+  };
 
   const drawBottleneckFeatures = (data) => {
     const format = new WKT();
@@ -660,32 +686,33 @@ const loadBottleneckData = async (radius, zone) => {
     bottleneckLayerRef.current.changed();
   };
 
-const clearBuffer = () => {
-  // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
-  if (!bufferLayerRef.current) return;
+  const clearBuffer = () => {
+    // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
+    if (!bufferLayerRef.current) return;
 
-  bufferLayerRef.current.getSource().clear();
-  bufferGeometryRef.current = null;
-};
-
-// When buffer is globally disabled (both toggles OFF), clear buffer + popup
-useEffect(() => {
-  const handleClear = () => {
-    clearBuffer();
-
-    if (overlayRef.current) {
-      overlayRef.current.setPosition(undefined);
-    }
-
-    if (clickMarkerLayerRef.current) {
-      const src = clickMarkerLayerRef.current.getSource();
-      src && src.clear();
-    }
+    bufferLayerRef.current.getSource().clear();
+    bufferGeometryRef.current = null;
   };
 
-  window.addEventListener("clear-buffer-graphics", handleClear);
-  return () => window.removeEventListener("clear-buffer-graphics", handleClear);
-}, []);
+  // When buffer is globally disabled (both toggles OFF), clear buffer + popup
+  useEffect(() => {
+    const handleClear = () => {
+      clearBuffer();
+
+      if (overlayRef.current) {
+        overlayRef.current.setPosition(undefined);
+      }
+
+      if (clickMarkerLayerRef.current) {
+        const src = clickMarkerLayerRef.current.getSource();
+        src && src.clear();
+      }
+    };
+
+    window.addEventListener("clear-buffer-graphics", handleClear);
+    return () =>
+      window.removeEventListener("clear-buffer-graphics", handleClear);
+  }, []);
 
   // -----------------------------
   // LAYER FACTORY 🔥
@@ -737,7 +764,6 @@ useEffect(() => {
             bufferEnabledRef.current === false &&
             layerName === "ScenerioSanitation Layer"
           ) {
-
             setAnalysisData({});
             setPopupInfo(properties);
             overlayRef.current.setPosition(evt.coordinate);
