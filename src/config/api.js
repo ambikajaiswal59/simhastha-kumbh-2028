@@ -9,11 +9,11 @@ export const API = {
   aoi: `${API_URL}/aoi_layer`,
   suitableLand: `${API_URL}/suitable_land`,
   sanitation: `${API_URL}/santitation_scenario`,
+  openArea: `${API_URL}/open_area`,
 
   coreAnalysis: `${API_URL}/v1/get_feature_count_avg_distance`,
 
-  emptySpaces: (radius) =>
-    `${API_URL}/empty-spaces?radius=${radius}`,
+  emptySpaces: (radius) => `${API_URL}/empty-spaces?radius=${radius}`,
 
   bottlenecks: (radius, zone) =>
     `${API_URL}/bottlenecks?radius=${radius}&zone=${encodeURIComponent(zone)}`,

@@ -31,6 +31,7 @@ export default function MainLayout() {
     site_priority: false,
     emptySpace: false,
     bottleneck: false,
+    open_area: false,
   });
   const [analysisData, setAnalysisData] = useState({});
   const [bufferValue, setBufferValue] = useState({

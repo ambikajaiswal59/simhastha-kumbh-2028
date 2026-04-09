@@ -78,6 +78,8 @@ export default function OpenLayerMap({
   const bufferRef = useRef(buffer);
   const [showLegend, setShowLegend] = useState(false);
   const gapLayerRef = useRef(null);
+  const openAreaLayerRef = useRef(null);
+
   const mlLayerRef = useRef(null);
   const [popupInfo, setPopupInfo] = useState(null);
   const popupRef = useRef(null);
@@ -87,11 +89,14 @@ export default function OpenLayerMap({
   const [baseMapType, setBaseMapType] = useState("street");
   const bottleneckLayerRef = useRef(null);
   const bufferGeometryRef = useRef(null);
+  const openAreaDelayRef = useRef(null);
+  const coreAnalysisDrawTimerRef = useRef(null); /// concentric draw based on core button
+
   //////************************************* */
   const lastClickedCoordinateRef = useRef(null);
   const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
-  // -----------------------------
+  // --------------------------------------------
   // ICON STYLE
   // -----------------------------
   const getStyle = (feature, type) => {
@@ -171,7 +176,17 @@ export default function OpenLayerMap({
       fill: new Fill({ color }),
     });
   };
-
+  //-------------------------------open area-layer style ----------------
+const openAreaLayerStyle = new Style({
+  fill: new Fill({
+    color: "rgba(60, 160, 60, 0.25)",
+    // forest green with low opacity
+  }),
+  stroke: new Stroke({
+    color: "red",
+    width:1,
+  }), // no boundary
+});;
   // -----------------------------
   // FETCH DEMAND
   // -----------------------------
@@ -213,7 +228,72 @@ export default function OpenLayerMap({
 
     setLoadingLayer(false);
   };
-  // -----------------------------
+  // -------------open area-------------------
+
+    // const fetchOpenAreaLayer = async () => {
+    //    if (!openAreaLayerRef.current) return;
+
+    //  clearTimeout(openAreaRef.current);
+    //  setLoadingLayer(true);
+    //  openAreaLayerRef.current.setVisible(false);
+
+    //   try {
+    //     if (openAreaLayerRef.current.getSource().getFeatures().length === 0) {
+    //       const res = await fetch(API.openArea);
+    //       const json = await res.json();
+
+    //       const features = new GeoJSON().readFeatures(json.data, {
+    //         dataProjection: "EPSG:4326",
+    //         featureProjection: "EPSG:3857",
+    //       });
+
+    //       openAreaLayerRef.current.getSource().addFeatures(features);
+           
+    //     } openAreaRef.current = setTimeout(() => {
+    //       openAreaLayerRef.current?.setVisible(true);
+    //       setLoadingLayer(false);
+    //     }, 20000)
+    //   }
+      
+    //     catch (err) {
+    //     console.error("Open area error:", err);
+    //   } finally {
+    //     setLoadingLayer(false);
+    //   }
+  // };
+  
+
+  const fetchOpenAreaLayer = async () => {
+    if (!openAreaLayerRef.current) return;
+
+    clearTimeout(openAreaDelayRef.current);
+    setLoadingLayer(true);
+    openAreaLayerRef.current.setVisible(false);
+
+    try {
+      if (openAreaLayerRef.current.getSource().getFeatures().length === 0) {
+        const res = await fetch(API.openArea);
+        const json = await res.json();
+
+        const features = new GeoJSON().readFeatures(json.data, {
+          dataProjection: "EPSG:4326",
+          featureProjection: "EPSG:3857",
+        });
+
+        openAreaLayerRef.current.getSource().addFeatures(features);
+      }
+
+      openAreaDelayRef.current = setTimeout(() => {
+        openAreaLayerRef.current?.setVisible(true);
+        setLoadingLayer(false);
+      }, 5000); // change to 3000 / 5000 / 10000 as needed
+    } catch (err) {
+      console.error("Open area error:", err);
+      setLoadingLayer(false);
+    }
+  };
+
+
   // FETCH Gap
   // -----------------------------
   const fetchGapLayer = async () => {
@@ -289,7 +369,9 @@ export default function OpenLayerMap({
       }),
       visible: false,
     });
-
+    //----------------
+    
+    
     mapObj.current = new Map({
       target: mapRef.current,
       layers: [
@@ -334,6 +416,15 @@ export default function OpenLayerMap({
       false,
       "SuitableLand Layer",
     );
+    //---*******open area create layer******* -----------
+    openAreaLayerRef.current = createLayer(
+      openAreaLayerStyle,
+      false,
+      "Open Area Layer",
+    );
+    openAreaLayerRef.current.setZIndex(9997);
+
+
 
     scenerioSanitationRef.current = new VectorLayer({
       source: new VectorSource(),
@@ -377,6 +468,9 @@ export default function OpenLayerMap({
       visible: false,
       zIndex: 9998,
     });
+    //-----------------open area-----------
+    mapObj.current.addLayer(openAreaLayerRef.current);
+    //-------------------------------------
 
     bottleneckLayerRef.current.set("name", "Bottleneck Layer");
 
@@ -874,6 +968,20 @@ useEffect(() => {
     });
   };
 
+  //--=================concentric delay to plot ===============
+  const syncCoreAnalysisDraw = (shouldDraw = false) => {
+    clearTimeout(coreAnalysisDrawTimerRef.current);
+
+    if (!shouldDraw) return;
+
+    coreAnalysisDrawTimerRef.current = setTimeout(() => {
+      if (coreAnalysisActiveRef.current) {
+        drawCoreAnalysisCircles();
+      }
+    }, 1000);
+  };
+//=========================================
+
   ////************************************** ***********/
   useEffect(() => {
     const handleCoreAnalysis = () => {
@@ -883,13 +991,16 @@ useEffect(() => {
 
       const [lon, lat] = toLonLat(coordinate);
 
-      drawCoreAnalysisCircles();
+      // drawCoreAnalysisCircles(); for sync the core button time plot cocentric on map
+         syncCoreAnalysisDraw(true);
+
 
       selectedRef.current.forEach((type) => {
         fetchCoreAnalysis(type, lat, lon);
       });
     };
     const handleCloseCoreAnalysis = () => {
+      syncCoreAnalysisDraw;
       coreAnalysisActiveRef.current = false;
 
       const coordinate = lastClickedCoordinateRef.current;
@@ -905,11 +1016,12 @@ useEffect(() => {
 
     window.addEventListener("run-core-analysis", handleCoreAnalysis);
     window.addEventListener("close-core-analysis", handleCloseCoreAnalysis);
+    syncCoreAnalysisDraw();
 
     return () => {
       window.removeEventListener(
         "close-core-analysis",
-        handleCloseCoreAnalysis,
+        handleCloseCoreAnalysis,   
       );
       window.removeEventListener("run-core-analysis", handleCoreAnalysis);
     };
@@ -982,7 +1094,8 @@ useEffect(() => {
     if (
       !demandLayerRef.current ||
       !supplyLayerRef.current ||
-      !suitableLandRef.current
+      !suitableLandRef.current ||
+      !openAreaLayerRef.current    //--open area layer----
     )
       return;
 
@@ -993,6 +1106,14 @@ useEffect(() => {
     } else {
       demandLayerRef.current.setVisible(false);
     }
+    //OPEN-AREA
+        // if (analysisLayers.open_area) {
+        //   fetchOpenAreaLayer();
+        //   openAreaLayerRef.current.setVisible(true);
+        // } else {
+        //   openAreaLayerRef.current.setVisible(false);
+        // }
+
 
     // SUPPLY
     if (analysisLayers.supply) {
@@ -1018,6 +1139,22 @@ useEffect(() => {
       suitableLandRef.current.setVisible(false);
     }
   }, [analysisLayers]);
+
+
+  //====== SEPRATE OPEN AREA========
+  useEffect(() => {
+    if (!openAreaLayerRef.current) return;
+
+    if (analysisLayers.open_area) {
+      fetchOpenAreaLayer();
+    } else {
+      clearTimeout(openAreaDelayRef.current);
+      setLoadingLayer(false);
+      openAreaLayerRef.current.setVisible(false);
+    }
+  }, [analysisLayers.open_area]);
+
+  //--------------------------------
 
   // -----------------------------
   // LOAD DEMAND/SUPPLY
@@ -1560,10 +1697,17 @@ useEffect(() => {
       )}
 
       {/* LOADING LAYER OVERLAY */}
-      {loadingLayer && (
+      {/* {loadingLayer && (
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[999]">
           <div className="bg-white px-6 py-3 rounded-lg shadow-lg text-lg font-semibold">
             Loading Layer...
+          </div>
+        </div>
+      )} */}
+      {loadingLayer && (
+        <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-[999]">
+          <div className="bg-white p-4 rounded-full shadow-lg">
+            <div className="w-10 h-10 border-4 border-gray-300 border-t-[#133b5c] rounded-full animate-spin"></div>
           </div>
         </div>
       )}
@@ -1580,3 +1724,15 @@ useEffect(() => {
     </div>
   );
 }
+/**
+ 
+
+1.Worked on open area layer loading logic with delayed display and loader handling.
+2.keep the label name same as buttons and use gradient in openarea layer fill color and boundary color accordingly
+3.Fixed analysis checkbox dependency behavior so toilet layer removal also clears related analysis states.
+4.Improved core analysis behavior by aligning concentric buffer plot timing with table display 
+5.Verified sidebar, analysis panel, and map layer interactions for demand, supply, gap, and open area workflows.
+6.merge the latest code and push the code on github and verified the changes 
+7.gone through the
+ 
+*/
