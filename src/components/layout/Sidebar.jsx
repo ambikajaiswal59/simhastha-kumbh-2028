@@ -109,7 +109,6 @@ export default function Sidebar({
       }));
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-
   const handleSelect = (layer) => {
     let updated;
 
@@ -123,6 +122,7 @@ export default function Sidebar({
         setAnalysisLayers({
           demand: false,
           supply: false,
+          open_area: false,
         });
       }
     } else {
@@ -203,25 +203,27 @@ export default function Sidebar({
                         {[
                           { key: "demand", label: "Demand" },
                           { key: "supply", label: "Supply Gap" },
-                          { key: "open_area",label:"Empty Area" },
-                        ].map((item) => (
-                          <label
-                            key={item.key}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={analysisLayers[item.key]}
-                              onChange={(e) =>
-                                setAnalysisLayers((prev) => ({
-                                  ...prev,
-                                  [item.key]: e.target.checked,
-                                }))
-                              }
-                            />
-                            {item.label}
-                          </label>
-                        ))}
+                          { key: "open_area", label: "Open Area" },
+                        ]
+                          .filter((item) => analysisLayers[item.key])
+                          .map((item) => (
+                            <label
+                              key={item.key}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={analysisLayers[item.key]}
+                                onChange={(e) =>
+                                  setAnalysisLayers((prev) => ({
+                                    ...prev,
+                                    [item.key]: e.target.checked,
+                                  }))
+                                }
+                              />
+                              {item.label}
+                            </label>
+                          ))}
 
                         {hasSitePriority && (
                           <label className="flex items-center gap-2 cursor-pointer">

@@ -89,12 +89,14 @@ export default function OpenLayerMap({
   const [baseMapType, setBaseMapType] = useState("street");
   const bottleneckLayerRef = useRef(null);
   const bufferGeometryRef = useRef(null);
- const openAreaDelayRef = useRef(null);
+  const openAreaDelayRef = useRef(null);
+  const coreAnalysisDrawTimerRef = useRef(null); /// concentric draw based on core button
+
   //////************************************* */
   const lastClickedCoordinateRef = useRef(null);
   const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
-  // -----------------------------
+  // --------------------------------------------
   // ICON STYLE
   // -----------------------------
   const getStyle = (feature, type) => {
@@ -966,6 +968,20 @@ useEffect(() => {
     });
   };
 
+  //--=================concentric delay to plot ===============
+  const syncCoreAnalysisDraw = (shouldDraw = false) => {
+    clearTimeout(coreAnalysisDrawTimerRef.current);
+
+    if (!shouldDraw) return;
+
+    coreAnalysisDrawTimerRef.current = setTimeout(() => {
+      if (coreAnalysisActiveRef.current) {
+        drawCoreAnalysisCircles();
+      }
+    }, 1000);
+  };
+//=========================================
+
   ////************************************** ***********/
   useEffect(() => {
     const handleCoreAnalysis = () => {
@@ -975,13 +991,16 @@ useEffect(() => {
 
       const [lon, lat] = toLonLat(coordinate);
 
-      drawCoreAnalysisCircles();
+      // drawCoreAnalysisCircles(); for sync the core button time plot cocentric on map
+         syncCoreAnalysisDraw(true);
+
 
       selectedRef.current.forEach((type) => {
         fetchCoreAnalysis(type, lat, lon);
       });
     };
     const handleCloseCoreAnalysis = () => {
+      syncCoreAnalysisDraw;
       coreAnalysisActiveRef.current = false;
 
       const coordinate = lastClickedCoordinateRef.current;
@@ -997,11 +1016,12 @@ useEffect(() => {
 
     window.addEventListener("run-core-analysis", handleCoreAnalysis);
     window.addEventListener("close-core-analysis", handleCloseCoreAnalysis);
+    syncCoreAnalysisDraw();
 
     return () => {
       window.removeEventListener(
         "close-core-analysis",
-        handleCloseCoreAnalysis,
+        handleCloseCoreAnalysis,   
       );
       window.removeEventListener("run-core-analysis", handleCoreAnalysis);
     };
@@ -1704,3 +1724,15 @@ useEffect(() => {
     </div>
   );
 }
+/**
+ 
+
+1.Worked on open area layer loading logic with delayed display and loader handling.
+2.keep the label name same as buttons and use gradient in openarea layer fill color and boundary color accordingly
+3.Fixed analysis checkbox dependency behavior so toilet layer removal also clears related analysis states.
+4.Improved core analysis behavior by aligning concentric buffer plot timing with table display 
+5.Verified sidebar, analysis panel, and map layer interactions for demand, supply, gap, and open area workflows.
+6.merge the latest code and push the code on github and verified the changes 
+7.gone through the
+ 
+*/
