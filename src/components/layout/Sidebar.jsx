@@ -14,10 +14,17 @@ export default function Sidebar({
   handleBufferEnabled,
   bottleneckZone,
   setBottleneckZone,
+  gridSize,
+  setGridSize,
+  analysisTargetLayer,
+  setAnalysisTargetLayer,
+  weightsState,
+  setWeightsState,
+  onRunDemand,
+  onRunSupply,
 }) {
   const [layers, setLayers] = useState([]);
   const [selected, setSelected] = useState([{ table_name: "road_network3" }]);
-  const [analysisTargetLayer, setAnalysisTargetLayer] = useState([]);
 
   const [accordionOpen, setAccordionOpen] = useState({
     layers: true,
@@ -26,15 +33,7 @@ export default function Sidebar({
     mlLayer: false,
   });
 
-  const [gridSize, updateGridSize] = useState(50);
   const [activeBufferType, setActiveBufferType] = useState("");
-  const [weightsState, updateWeights] = useState({
-    temple: 5,
-    parking: 3,
-    junction: 2,
-    hotel: 2,
-    building: 1,
-  });
 
   const allowedLayers = [
     "road_network3",
@@ -47,13 +46,13 @@ export default function Sidebar({
   ];
 
   const layerLabelMap = {
-    toilets_sanitation: "Toilet",
-    police_station: "Police Station",
-    parking_loc: "Parking ",
-    road_network3: "Road",
-    temple_ujjain: "Temple",
+    toilets_sanitation: "Toilets",
+    police_station: "Police Stations",
+    parking_loc: "Parking Areas",
+    road_network3: "Roads",
+    temple_ujjain: "Temples",
     junction: "Junctions",
-    scenerio: "Scenerio",
+    scenerio: "Scenarios",
   };
 
   const findLayerByName = (data, name) =>
@@ -142,11 +141,37 @@ export default function Sidebar({
   const updateWeightValue = (key, value) => {
     const updated = { ...weightsState, [key]: value };
 
-    updateWeights(updated);
-    setWeights(updated);
+    setWeightsState(updated);
   };
   const hasSitePriority = analysisLayers.site_priority;
   const isMLUIBlocked = bufferValue.analysis.enabled || !bufferValue.ml.enabled;
+
+  // Check for required props/state before rendering to avoid runtime errors
+  if (
+    !layers ||
+    !selected ||
+    !analysisLayers ||
+    !bufferValue ||
+    !accordionOpen ||
+    !weightsState ||
+    !setBufferValue ||
+    !setAccordionOpen ||
+    !setAnalysisLayers ||
+    !setActiveBufferType ||
+    !setSelected ||
+    !setSelectedLayers ||
+    !setBuffer ||
+    !setBottleneckZone ||
+    !setAnalysisTargetLayer ||
+    !setWeightsState ||
+    !layerLabelMap
+  ) {
+    return (
+      <div className="text-red-500 p-4">
+        Error: Sidebar is missing required data or handlers.
+      </div>
+    );
+  }
 
   return (
     <div className="w-72 h-full flex flex-col text-white bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
@@ -202,28 +227,25 @@ export default function Sidebar({
                       <div className="ml-5 mt-1 space-y-1 text-xs">
                         {[
                           { key: "demand", label: "Demand" },
-                          { key: "supply", label: "Supply Gap" },
-                          { key: "open_area", label: "Open Area" },
-                        ]
-                          .filter((item) => analysisLayers[item.key])
-                          .map((item) => (
-                            <label
-                              key={item.key}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={analysisLayers[item.key]}
-                                onChange={(e) =>
-                                  setAnalysisLayers((prev) => ({
-                                    ...prev,
-                                    [item.key]: e.target.checked,
-                                  }))
-                                }
-                              />
-                              {item.label}
-                            </label>
-                          ))}
+                          { key: "supply", label: "Supply" },
+                        ].map((item) => (
+                          <label
+                            key={item.key}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={analysisLayers[item.key]}
+                              onChange={(e) =>
+                                setAnalysisLayers((prev) => ({
+                                  ...prev,
+                                  [item.key]: e.target.checked,
+                                }))
+                              }
+                            />
+                            {item.label}
+                          </label>
+                        ))}
 
                         {hasSitePriority && (
                           <label className="flex items-center gap-2 cursor-pointer">
@@ -274,33 +296,27 @@ export default function Sidebar({
                   <span className="text-sm text-cyan-300 flex items-center gap-2">
                     Analysis
                   </span>
-
                   <button
                     onClick={() => {
                       const enabled = !bufferValue.analysis.enabled;
-
                       setBufferValue((prev) => ({
                         ...prev,
                         analysis: { ...prev.analysis, enabled },
                         // If Analysis is ON, ML buffer must be OFF
-                        ml: { ...prev.ml, enabled: enabled ? false : prev.ml.enabled },
+                        ml: {
+                          ...prev.ml,
+                          enabled: enabled ? false : prev.ml.enabled,
+                        },
                       }));
-
                       if (enabled) {
                         setActiveBufferType("analysis");
                         handleBufferEnabled("analysis");
-
-                        // Hard-reset ML selections so map effects stop immediately
                         setAnalysisLayers((prev) => ({
                           ...prev,
                           emptySpace: false,
                           bottleneck: false,
                         }));
-
-                        // optional reset
                         setBottleneckZone("ALL");
-
-                        // keep UI consistent
                         setAccordionOpen((prev) => ({
                           ...prev,
                           mlLayer: false,
@@ -323,38 +339,30 @@ export default function Sidebar({
                     />
                   </button>
                 </div>
-
                 {/* AI/ML TOGGLE */}
                 <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10">
                   <span className="text-sm text-green-300 flex items-center gap-2">
-                    AI / ML
+                    AI/ML Layer
                   </span>
                   <button
                     onClick={() => {
                       const isCurrentlyOn = bufferValue.ml.enabled;
-
-                      // Toggle ML buffer + force Analysis buffer OFF
                       setBufferValue((prev) => ({
                         ...prev,
                         ml: { ...prev.ml, enabled: !isCurrentlyOn },
                         analysis: { ...prev.analysis, enabled: false },
                       }));
-
                       if (isCurrentlyOn) {
-                        // Turning ML OFF → clear ML selections + disable buffer
                         setAnalysisLayers({
                           emptySpace: false,
                           bottleneck: false,
                         });
-
                         setBottleneckZone("ALL");
                         setActiveBufferType(null);
                         handleBufferEnabled(null);
                       } else {
-                        // Turning ML ON → enable ML buffer mode + open ML UI
                         handleBufferEnabled("ml");
                         setActiveBufferType("ml");
-
                         setAccordionOpen((prev) => ({
                           ...prev,
                           mlLayer: true,
@@ -377,26 +385,20 @@ export default function Sidebar({
                   </button>
                 </div>
               </div>
-
               {/* ===== BUFFER SLIDER ===== */}
               <div className=" pt-4">
-                <h4 className="text-xs uppercase text-orange-300 mb-2">
+                <h4 className="text-xs text-orange-300 mb-2">
                   Buffer Distance
                 </h4>
-
                 {(() => {
                   const isAnalysisActive = bufferValue.analysis.enabled;
-
                   const isMLActive =
                     bufferValue.ml.enabled &&
                     (analysisLayers.emptySpace || analysisLayers.bottleneck);
-
                   const isAnyActive = isAnalysisActive || isMLActive;
-
                   const activeValue = bufferValue.analysis.enabled
                     ? bufferValue.analysis.value
                     : bufferValue.ml.value;
-
                   return (
                     <>
                       <input
@@ -408,7 +410,6 @@ export default function Sidebar({
                         value={activeValue}
                         onChange={(e) => {
                           const meters = Number(e.target.value);
-
                           if (bufferValue.analysis.enabled) {
                             setBufferValue((prev) => ({
                               ...prev,
@@ -418,7 +419,6 @@ export default function Sidebar({
                               },
                             }));
                           }
-
                           if (bufferValue.ml.enabled) {
                             setBufferValue((prev) => ({
                               ...prev,
@@ -428,8 +428,6 @@ export default function Sidebar({
                               },
                             }));
                           }
-
-                          // Map buffer (single source)
                           setBuffer(meters / 1000);
                         }}
                         className={`w-full ${
@@ -438,7 +436,6 @@ export default function Sidebar({
                             : "opacity-40 cursor-not-allowed"
                         }`}
                       />
-
                       <div className="text-center mt-2 text-xs bg-white/10 px-2 py-1 rounded">
                         {isAnyActive
                           ? `${activeValue} meters`
@@ -460,7 +457,6 @@ export default function Sidebar({
             <span>AI/ML Layer</span>
             <span>{accordionOpen.mlLayer ? "▾" : "▸"}</span>
           </button>
-
           <div
             className={`mt-3 overflow-hidden transition-all duration-300 ${
               accordionOpen.mlLayer
@@ -470,16 +466,15 @@ export default function Sidebar({
           >
             <div className="mt-3 p-4 bg-white/5 rounded-xl border border-white/10 space-y-6">
               <div>
-                <h4 className="text-xs uppercase text-yellow-300 mb-3">
+                <h4 className="text-xs  text-yellow-300 mb-3">
                   Select Layers
                 </h4>
-
                 {/* EMPTY SPACE */}
                 <label className="flex items-center justify-between bg-white/5 px-3 py-2 mb-3 rounded-lg border border-white/10">
                   <span className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={analysisLayers.emptySpace}
+                      checked={!!analysisLayers.emptySpace}
                       disabled={isMLUIBlocked}
                       onChange={() => {
                         if (isMLUIBlocked) return;
@@ -487,10 +482,7 @@ export default function Sidebar({
                           ...prev,
                           emptySpace: !prev.emptySpace,
                         }));
-
                         setActiveBufferType("ml");
-
-                        // 🔥 ensure section open
                         setAccordionOpen((prev) => ({
                           ...prev,
                           mlLayer: true,
@@ -501,23 +493,20 @@ export default function Sidebar({
                     <span>Empty Space</span>
                   </span>
                 </label>
-
                 {/* BOTTLENECK */}
                 <label className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/10">
                   <span className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={analysisLayers.bottleneck}
+                      checked={!!analysisLayers.bottleneck}
                       disabled={isMLUIBlocked}
                       onChange={(e) => {
                         if (isMLUIBlocked) return;
                         const checked = e.target.checked;
-
                         setAnalysisLayers((prev) => ({
                           ...prev,
                           bottleneck: checked,
                         }));
-
                         if (checked) {
                           setActiveBufferType("ml");
                           handleBufferEnabled(true);
@@ -527,14 +516,12 @@ export default function Sidebar({
                     <span>Bottleneck</span>
                   </span>
                 </label>
-
                 {/* CONFIG */}
                 {analysisLayers.bottleneck && (
                   <div className="bg-white/5 p-3 rounded-lg border border-white/10 mt-2">
                     <label className="text-xs text-gray-300">
                       Bottleneck Zone
                     </label>
-
                     <select
                       value={bottleneckZone}
                       onChange={(e) => setBottleneckZone(e.target.value)}
@@ -551,109 +538,68 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* ================= ANALYSIS SETTINGS ================= */}
+        {/* ================= ANALYSIS SETTINGS (PREVIOUS DESIGN, DYNAMIC WEIGHT SECTION) ================= */}
         <div>
           <button
             onClick={() => toggleAccordion("analysis")}
-            className="w-full flex justify-between items-center 
-        bg-white/10 hover:bg-white/20 
-        px-3 py-2 rounded-lg 
-        text-cyan-300 font-semibold text-sm
-        border border-white/10 transition"
+            className="w-full flex justify-between items-center px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-cyan-300 font-semibold text-sm border border-white/10 transition"
           >
             <span>Analysis Settings</span>
             <span>{accordionOpen.analysis ? "▾" : "▸"}</span>
           </button>
-
           <div
-            className={`mt-3 overflow-hidden transition-all duration-300
-        ${
-          accordionOpen.analysis
-            ? "max-h-[900px] opacity-100"
-            : "max-h-0 opacity-0"
-        }`}
+            className={`transition-all duration-300 ${accordionOpen.analysis ? "max-h-[700px] opacity-100 mt-3" : "max-h-0 opacity-0"}`}
+            style={{ overflow: "hidden" }}
           >
-            <div className="mt-3 p-4 bg-white/5 rounded-xl border border-white/10 space-y-6">
-              {/* ANALYSIS LAYER */}
+            <div className="p-4 bg-white/10 rounded-xl border border-white/10 space-y-6">
+              {/* ANALYSIS LAYER CHECKLIST */}
               <div>
-                <h4 className="text-xs uppercase text-yellow-300 mb-2">
-                  Analysis Layer
+                <h4 className="text-xs uppercase text-yellow-400 mb-3 font-semibold">
+                  Analysis Layers
                 </h4>
-
                 <div className="space-y-1">
-                  {layers.map((layer) => {
-                    const isChecked = analysisTargetLayer.includes(
-                      layer.table_name,
-                    );
-
-                    return (
-                      <label
-                        key={layer.layer_id}
-                        className={`flex justify-between items-center px-3 py-2 rounded-md text-sm cursor-pointer
-                    ${
-                      isChecked
-                        ? "bg-yellow-500 text-white"
-                        : "bg-white/5 hover:bg-white/10"
-                    }`}
-                      >
-                        <span>{layerLabelMap[layer.table_name]}</span>
-
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {
-                            setAnalysisTargetLayer((prev) =>
-                              isChecked
-                                ? prev.filter((n) => n !== layer.table_name)
-                                : [...prev, layer.table_name],
-                            );
-                          }}
-                        />
-                      </label>
-                    );
-                  })}
+                  {Array.isArray(layers) &&
+                    layers.map((layer) => {
+                      const isChecked =
+                        Array.isArray(analysisTargetLayer) &&
+                        analysisTargetLayer.includes(layer.table_name);
+                      return (
+                        <label
+                          key={layer.layer_id || layer.table_name}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer text-sm border transition
+                          ${
+                            isChecked
+                              ? "bg-yellow-100/60 text-yellow-900 border-yellow-400"
+                              : "hover:bg-yellow-100/10 text-white border-white/10"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!!isChecked}
+                            onChange={() => {
+                              setAnalysisTargetLayer((prev) =>
+                                isChecked
+                                  ? prev.filter((n) => n !== layer.table_name)
+                                  : [...prev, layer.table_name],
+                              );
+                            }}
+                            className="accent-yellow-400 w-4 h-4"
+                          />
+                          <span>
+                            {layerLabelMap[layer.table_name] ||
+                              layer.table_name}
+                          </span>
+                        </label>
+                      );
+                    })}
                 </div>
               </div>
 
-              {/* BUFFER */}
-              {/* <div className="border-t border-white/10 pt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-xs uppercase text-orange-300">
-                    Buffer Distance
-                  </h4>
-
-                  <Switch
-                    checked={bufferEnabled}
-                    onChange={handleBufferEnabled}
-                    size="small"
-                  />
-                </div>
-
-                <input
-                  type="range"
-                  min="100"
-                  max="500"
-                  step="50"
-                  value={bufferValue}
-                  onChange={(e) => {
-                    const meters = Number(e.target.value);
-                    setBufferValue(meters);
-                    setBuffer(meters / 1000);
-                  }}
-                  className="w-full accent-orange-400"
-                />
-
-                <div className="text-center mt-2 text-xs bg-white/10 px-2 py-1 rounded">
-                  {bufferValue} meters
-                </div>
-              </div> */}
-
               {/* GRID SIZE */}
-              <div className="border-t border-white/10 pt-4">
-                <h4 className="text-xs uppercase text-cyan-300 mb-2">
+              <div>
+                <h4 className="text-xs uppercase text-cyan-400 mb-3 font-semibold">
                   Grid Size
                 </h4>
-
                 <div className="flex gap-2">
                   {[50, 100, 150].map((size) => (
                     <button
@@ -662,47 +608,69 @@ export default function Sidebar({
                         updateGridSize(size);
                         setGridSize(size);
                       }}
-                      className={`px-3 py-1 text-xs rounded-md border transition
-                  ${
-                    gridSize === size
-                      ? "bg-cyan-500 text-white border-cyan-500"
-                      : "border-white/30 hover:border-cyan-300"
-                  }`}
+                      className={`flex items-center justify-center min-w-[54px] min-h-[28px] px-4 py-1 rounded-md text-sm font-semibold shadow-sm border transition
+                      ${
+                        gridSize === size
+                          ? "bg-cyan-400 text-white border-cyan-400 ring-2 ring-cyan-200"
+                          : "bg-white/10 border-white/20 hover:bg-cyan-400/15 hover:border-cyan-300"
+                      }`}
                     >
-                      {size} m
+                      <span className="block">{size} meter</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* WEIGHTS */}
-              <div className="border-t border-white/10 pt-4">
-                <h4 className="text-xs uppercase text-purple-300 mb-2">
-                  Weight Settings
-                </h4>
-
-                <div className="space-y-2">
-                  {Object.keys(weightsState).map((key) => (
-                    <div
-                      key={key}
-                      className="flex justify-between items-center bg-white/5 px-3 py-2 rounded-md"
-                    >
-                      <span className="capitalize text-sm">{key}</span>
-
-                      <input
-                        type="number"
-                        min="1"
-                        max="5"
-                        value={weightsState[key]}
-                        onChange={(e) =>
-                          updateWeightValue(key, Number(e.target.value))
-                        }
-                        className="w-12 text-black text-center rounded"
-                      />
+              {/* DYNAMIC WEIGHT SETTINGS */}
+              {Array.isArray(analysisTargetLayer) &&
+                analysisTargetLayer.length > 0 && (
+                  <div>
+                    <h4 className="text-xs uppercase text-purple-400 font-semibold mb-3 tracking-widest">
+                      Weight Settings
+                    </h4>
+                    <div className="flex flex-col gap-2">
+                      {analysisTargetLayer.map((key) => (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-lg border border-white/15"
+                        >
+                          <span className="capitalize text-sm flex-1">
+                            {layerLabelMap[key] || key}
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="5"
+                            value={weightsState[key] ?? 0}
+                            onChange={(e) =>
+                              updateWeightValue(key, Number(e.target.value))
+                            }
+                            className={`w-14 text-black text-center rounded border ml-3 ${
+                              (weightsState[key] ?? 0) === 0
+                                ? "bg-gray-200 text-gray-400"
+                                : "bg-white"
+                            }`}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                )}
+              {/* <div className="flex gap-3 pt-4">
+                <button
+                  onClick={onRunDemand}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg transition"
+                >
+                  Run Demand
+                </button>
+
+                <button
+                  onClick={onRunSupply}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition"
+                >
+                  Run Supply
+                </button>
+              </div> */}
             </div>
           </div>
         </div>
@@ -710,4 +678,3 @@ export default function Sidebar({
     </div>
   );
 }
-
