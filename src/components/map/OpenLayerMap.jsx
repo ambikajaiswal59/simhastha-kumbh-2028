@@ -44,6 +44,7 @@ import ToiletSantation from "../../assets/Icon/toilets.svg";
 import PoliceStation from "../../assets/Icon/police.svg";
 import Parking from "../../assets/Icon/parking.svg";
 import Junction from "../../assets/Icon/junction.svg";
+import { CleaningServices } from "@mui/icons-material";
 
 export default function OpenLayerMap({
   buffer,
@@ -56,6 +57,11 @@ export default function OpenLayerMap({
   setBufferResults,
   bufferEnabledRef,
   bottleneckZone,
+  gridSize,
+  analysisTargetLayer,
+  weightsState,
+  analysisMode,
+  setAnalysisMode,
 }) {
   const {
     mapRef,
@@ -72,6 +78,12 @@ export default function OpenLayerMap({
   const vectorLayerRef = useRef(null);
   const layerRef = useRef({});
   const demandLayerRef = useRef(null);
+  const demandAnalysisRef = useRef(
+    new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+    }),
+  );
   const supplyLayerRef = useRef(null);
   const aoiLayerRef = useRef(null);
   const [loadingLayer, setLoadingLayer] = useState(false);
@@ -96,6 +108,7 @@ export default function OpenLayerMap({
   const lastClickedCoordinateRef = useRef(null);
   const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  const [slider, setSlider] = useState(50);
   // --------------------------------------------
   // ICON STYLE
   // -----------------------------
@@ -177,16 +190,16 @@ export default function OpenLayerMap({
     });
   };
   //-------------------------------open area-layer style ----------------
-const openAreaLayerStyle = new Style({
-  fill: new Fill({
-    color: "rgba(60, 160, 60, 0.25)",
-    // forest green with low opacity
-  }),
-  stroke: new Stroke({
-    color: "red",
-    width:1,
-  }), // no boundary
-});;
+  const openAreaLayerStyle = new Style({
+    fill: new Fill({
+      color: "rgba(60, 160, 60, 0.25)",
+      // forest green with low opacity
+    }),
+    stroke: new Stroke({
+      color: "red",
+      width: 1,
+    }), // no boundary
+  });
   // -----------------------------
   // FETCH DEMAND
   // -----------------------------
@@ -228,40 +241,6 @@ const openAreaLayerStyle = new Style({
 
     setLoadingLayer(false);
   };
-  // -------------open area-------------------
-
-    // const fetchOpenAreaLayer = async () => {
-    //    if (!openAreaLayerRef.current) return;
-
-    //  clearTimeout(openAreaRef.current);
-    //  setLoadingLayer(true);
-    //  openAreaLayerRef.current.setVisible(false);
-
-    //   try {
-    //     if (openAreaLayerRef.current.getSource().getFeatures().length === 0) {
-    //       const res = await fetch(API.openArea);
-    //       const json = await res.json();
-
-    //       const features = new GeoJSON().readFeatures(json.data, {
-    //         dataProjection: "EPSG:4326",
-    //         featureProjection: "EPSG:3857",
-    //       });
-
-    //       openAreaLayerRef.current.getSource().addFeatures(features);
-           
-    //     } openAreaRef.current = setTimeout(() => {
-    //       openAreaLayerRef.current?.setVisible(true);
-    //       setLoadingLayer(false);
-    //     }, 20000)
-    //   }
-      
-    //     catch (err) {
-    //     console.error("Open area error:", err);
-    //   } finally {
-    //     setLoadingLayer(false);
-    //   }
-  // };
-  
 
   const fetchOpenAreaLayer = async () => {
     if (!openAreaLayerRef.current) return;
@@ -292,7 +271,6 @@ const openAreaLayerStyle = new Style({
       setLoadingLayer(false);
     }
   };
-
 
   // FETCH Gap
   // -----------------------------
@@ -370,8 +348,7 @@ const openAreaLayerStyle = new Style({
       visible: false,
     });
     //----------------
-    
-    
+
     mapObj.current = new Map({
       target: mapRef.current,
       layers: [
@@ -423,8 +400,6 @@ const openAreaLayerStyle = new Style({
       "Open Area Layer",
     );
     openAreaLayerRef.current.setZIndex(9997);
-
-
 
     scenerioSanitationRef.current = new VectorLayer({
       source: new VectorSource(),
@@ -518,6 +493,23 @@ const openAreaLayerStyle = new Style({
         }),
       ];
     });
+
+    if (demandAnalysisRef.current) {
+      demandAnalysisRef.current.setStyle((feature) => {
+        const demand = feature.get("Demand") || 0;
+
+        return new Style({
+          stroke: new Stroke({
+            color: "#333",
+            width: 0.5,
+          }),
+          fill: new Fill({
+            color: `rgba(255, 0, 0, ${Math.min(demand / 10, 0.8)})`,
+            // 🔥 higher demand = darker red
+          }),
+        });
+      });
+    }
     // -----------------------------
     // ADD LAYERS (ORDER MATTERS)
     // -----------------------------
@@ -530,6 +522,7 @@ const openAreaLayerStyle = new Style({
     mapObj.current.addLayer(scenerioSanitationRef.current);
     mapObj.current.addLayer(mlLayerRef.current);
     mapObj.current.addLayer(bottleneckLayerRef.current);
+    mapObj.current.addLayer(demandAnalysisRef.current);
     mapObj.current.addLayer(clickMarkerLayerRef.current);
 
     // -----------------------------
@@ -579,17 +572,32 @@ const openAreaLayerStyle = new Style({
       clearBuffer(); // ✅ THIS FIXES IT
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-  const fetchDemandAnalysisLayer = async ({
-    gridSize = 50,
-    weights = {
-      temple: 5,
-      parking: 3,
-      junction: 2,
-      hotel: 2,
-      building: 1,
-    },
-  } = {}) => {
+
+  useEffect(() => {
+    if (!analysisMode) return;
+
+    const weights = {};
+
+    analysisTargetLayer.forEach((layer) => {
+      weights[layer] = weightsState[layer] ?? 0;
+    });
+
+    const run = async () => {
+      if (analysisMode === "demand") {
+        await loadDemandData(gridSize, weights);
+      }
+
+      setAnalysisMode(null);
+    };
+
+    run();
+  }, [analysisMode]);
+
+  // Kept function here for future use—once the backend is fixed, you can use it directly.
+  const fetchDemandAnalysisLayer = async ({ gridSize, weights }) => {
     try {
+      debugger;
+      console.log(gridSize, weights);
       const res = await fetch("http://192.168.1.27:8000/run-analysis", {
         method: "POST",
         headers: {
@@ -600,15 +608,50 @@ const openAreaLayerStyle = new Style({
           weights,
         }),
       });
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
+
       const data = await res.json();
-      return data.data;
+
+      return data; // ✅ FIXED
     } catch (err) {
-      console.error("fetchDemandAnalysisLayer error:", err);
+      console.error(err);
       return null;
     }
+  };
+
+  const loadDemandData = async (gridSize, weights) => {
+    setLoadingLayer(true);
+    try {
+      const data = await fetchDemandAnalysisLayer({
+        gridSize,
+        weights,
+      });
+
+      if (data) {
+        drawDemandFeatures(data); // ✅ pass full response
+      }
+    } catch (err) {
+      console.error("Demand API error:", err);
+    } finally {
+      setLoadingLayer(false);
+    }
+  };
+
+  const drawDemandFeatures = (apiResponse) => {
+    if (!apiResponse?.features) return;
+
+    const source = demandAnalysisRef.current.getSource();
+    source.clear();
+
+    const format = new GeoJSON();
+
+    const features = format.readFeatures(apiResponse, {
+      dataProjection: "EPSG:32643", // ✅ from API
+      featureProjection: "EPSG:3857", // ✅ map projection
+    });
+
+    source.addFeatures(features);
+
+    demandAnalysisRef.current.setVisible(true);
   };
   const fetchEmptySpaces = async () => {
     try {
@@ -1006,7 +1049,7 @@ const openAreaLayerStyle = new Style({
       }
     }, 1000);
   };
-//=========================================
+  //=========================================
 
   ////************************************** ***********/
   useEffect(() => {
@@ -1018,8 +1061,7 @@ const openAreaLayerStyle = new Style({
       const [lon, lat] = toLonLat(coordinate);
 
       // drawCoreAnalysisCircles(); for sync the core button time plot cocentric on map
-         syncCoreAnalysisDraw(true);
-
+      syncCoreAnalysisDraw(true);
 
       selectedRef.current.forEach((type) => {
         fetchCoreAnalysis(type, lat, lon);
@@ -1047,7 +1089,7 @@ const openAreaLayerStyle = new Style({
     return () => {
       window.removeEventListener(
         "close-core-analysis",
-        handleCloseCoreAnalysis,   
+        handleCloseCoreAnalysis,
       );
       window.removeEventListener("run-core-analysis", handleCoreAnalysis);
     };
@@ -1121,7 +1163,7 @@ const openAreaLayerStyle = new Style({
       !demandLayerRef.current ||
       !supplyLayerRef.current ||
       !suitableLandRef.current ||
-      !openAreaLayerRef.current    //--open area layer----
+      !openAreaLayerRef.current //--open area layer----
     )
       return;
 
@@ -1133,13 +1175,12 @@ const openAreaLayerStyle = new Style({
       demandLayerRef.current.setVisible(false);
     }
     //OPEN-AREA
-        // if (analysisLayers.open_area) {
-        //   fetchOpenAreaLayer();
-        //   openAreaLayerRef.current.setVisible(true);
-        // } else {
-        //   openAreaLayerRef.current.setVisible(false);
-        // }
-
+    // if (analysisLayers.open_area) {
+    //   fetchOpenAreaLayer();
+    //   openAreaLayerRef.current.setVisible(true);
+    // } else {
+    //   openAreaLayerRef.current.setVisible(false);
+    // }
 
     // SUPPLY
     if (analysisLayers.supply) {
@@ -1165,7 +1206,6 @@ const openAreaLayerStyle = new Style({
       suitableLandRef.current.setVisible(false);
     }
   }, [analysisLayers]);
-
 
   //====== SEPRATE OPEN AREA========
   useEffect(() => {
@@ -1716,7 +1756,8 @@ const openAreaLayerStyle = new Style({
             type="range"
             min="0"
             max="100"
-            defaultValue="50"
+            value={slider}
+            onChange={(e) => setSlider(e.target.value)}
             className="w-full accent-orange-500 cursor-pointer"
           />
         </div>
