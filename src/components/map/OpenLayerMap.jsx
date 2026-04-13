@@ -594,29 +594,29 @@ export default function OpenLayerMap({
   }, [analysisMode]);
 
   // Kept function here for future use—once the backend is fixed, you can use it directly.
-  const fetchDemandAnalysisLayer = async ({ gridSize, weights }) => {
-    try {
-      debugger;
-      console.log(gridSize, weights);
-      const res = await fetch("http://192.168.1.27:8000/run-analysis", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          gridSize,
-          weights,
-        }),
-      });
+  // const fetchDemandAnalysisLayer = async ({ gridSize, weights }) => {
+  //   try {
+  //     debugger;
+  //     console.log(gridSize, weights);
+  //     const res = await fetch("http://192.168.1.27:8000/run-analysis", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         gridSize,
+  //         weights,
+  //       }),
+  //     });
+  //     console.log(gridSize,weights)
+  //     const data = await res.json();
 
-      const data = await res.json();
-
-      return data; // ✅ FIXED
-    } catch (err) {
-      console.error(err);
-      return null;
-    }
-  };
+  //     return data; // ✅ FIXED
+  //   } catch (err) {
+  //     console.error(err);
+  //     return null;
+  //   }
+  // };
 
   const loadDemandData = async (gridSize, weights) => {
     setLoadingLayer(true);

@@ -143,6 +143,13 @@ export default function Sidebar({
 
     setWeightsState(updated);
   };
+
+  useEffect(() => {
+    setAccordionOpen((prev) => ({
+      ...prev,
+      mlLayer: bufferValue.ml.enabled, // open when ON, close when OFF
+    }));
+  }, [bufferValue.ml.enabled]);
   const hasSitePriority = analysisLayers.site_priority;
   const isMLUIBlocked = bufferValue.analysis.enabled || !bufferValue.ml.enabled;
 
@@ -182,11 +189,11 @@ export default function Sidebar({
           <button
             onClick={() => toggleAccordion("layers")}
             className="w-full flex justify-between items-center 
-        bg-white/10 hover:bg-white/20 
-        px-3 py-2 rounded-lg 
-        text-orange-300 font-semibold text-sm
-        border border-white/10 transition"
-          >
+              bg-white/10 hover:bg-white/20 
+              px-3 py-2 rounded-lg 
+              text-orange-300 font-semibold text-sm
+              border border-white/10 transition"
+                >
             <span>Layer List</span>
             <span>{accordionOpen.layers ? "▾" : "▸"}</span>
           </button>
@@ -450,25 +457,32 @@ export default function Sidebar({
         </div>
         {/* ================= AI/ML LAYER ================= */}
         <div>
-          <button
-            onClick={() => toggleAccordion("mlLayer")}
-            className="w-full flex justify-between items-center bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-green-300 font-semibold text-sm border border-white/10 transition"
-          >
-            <span>AI/ML Layer</span>
-            <span>{accordionOpen.mlLayer ? "▾" : "▸"}</span>
-          </button>
-          <div
-            className={`mt-3 overflow-hidden transition-all duration-300 ${
-              accordionOpen.mlLayer
-                ? "max-h-[900px] opacity-100"
-                : "max-h-0 opacity-0"
-            }`}
-          >
+        <button
+              onClick={() => {
+                if (!bufferValue.ml.enabled) return; // block click
+                toggleAccordion("mlLayer");
+              }}
+              className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-semibold border transition
+                ${
+                  bufferValue.ml.enabled
+                    ? "bg-white/10 hover:bg-white/20 text-green-300 border-white/10"
+                    : "bg-white/5 text-gray-500 border-white/5 cursor-not-allowed opacity-50"
+                }
+              `}
+            >
+              <span>AI/ML Layer</span>
+              <span>{accordionOpen.mlLayer ? "▾" : "▸"}</span>
+            </button>
+            <div
+                className={`mt-3 overflow-hidden transition-all duration-300 ${
+                  accordionOpen.mlLayer
+                    ? "max-h-[900px] opacity-100"
+                    : "max-h-0 opacity-0"
+                } ${!bufferValue.ml.enabled ? "pointer-events-none opacity-40" : ""}`}
+              >
             <div className="mt-3 p-4 bg-white/5 rounded-xl border border-white/10 space-y-6">
               <div>
-                <h4 className="text-xs  text-yellow-300 mb-3">
-                  Select Layers
-                </h4>
+                <h4 className="text-xs  text-yellow-300 mb-3">Select Layers</h4>
                 {/* EMPTY SPACE */}
                 <label className="flex items-center justify-between bg-white/5 px-3 py-2 mb-3 rounded-lg border border-white/10">
                   <span className="flex items-center gap-2">
@@ -605,7 +619,7 @@ export default function Sidebar({
                     <button
                       key={size}
                       onClick={() => {
-                        updateGridSize(size);
+                    
                         setGridSize(size);
                       }}
                       className={`flex items-center justify-center min-w-[54px] min-h-[28px] px-4 py-1 rounded-md text-sm font-semibold shadow-sm border transition
