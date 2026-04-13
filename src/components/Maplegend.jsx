@@ -1,4 +1,4 @@
-import TenSeat from "../assets/10seat.png";
+import TenSeat from "../assets/Icon/T1.png";
 import Om from "../assets/Icon/temple.svg";
 import ToiletSantation from "../assets/Icon/toilets.svg";
 import PoliceStation from "../assets/Icon/police.svg";

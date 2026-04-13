@@ -332,6 +332,13 @@ export default function Sidebar({
                   <button
                     onClick={() => {
                       const isCurrentlyOn = bufferValue.ml.enabled;
+                      window.dispatchEvent(
+                        new CustomEvent("close-core-analysis"),
+                      );
+                      window.dispatchEvent(
+                        new CustomEvent("clear-buffer-graphics"),
+                      );
+
 
                       // Toggle ML buffer + force Analysis buffer OFF
                       setBufferValue((prev) => ({

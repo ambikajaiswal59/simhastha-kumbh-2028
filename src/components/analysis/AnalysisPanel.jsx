@@ -18,6 +18,7 @@ export default function AnalysisPanel({
   toiletSheet,
   setToiletSheet,
   handleToiletAnalysis,
+  isAnalysisOn,
 }) {
   const TYPE_LABELS = {
     toilets_sanitation: "Toilet",
@@ -160,14 +161,12 @@ export default function AnalysisPanel({
             {
               key: "open_area",
               label: "Open Area",
-             
             },
           ].map((btn) => {
             // const isDisabled = btn.key === "supply" && !analysisLayers.demand;
             const isDisabled =
               (btn.key === "supply" && !analysisLayers.demand) ||
               (btn.key === "open_area" && !analysisLayers.supply);
-
 
             return (
               <span key={btn.key} className="w-full">
@@ -235,167 +234,7 @@ export default function AnalysisPanel({
 
                     setShowAnalysisOptions(true);
                   }}
-                  // onClick={() => {
-                  //   if (isDisabled) return;
 
-                  //   if (btn.key === "demand" && analysisLayers.demand) {
-                  //     setShowLandSuitableDropdown(false);
-                  //   }
-
-                  //   if (btn.key === "supply" && analysisLayers.supply) {
-                  //     setShowLandSuitableDropdown(false);
-                  //   }
-
-                  //   if (btn.key === "open_area" && analysisLayers.open_area) {
-                  //     setShowLandSuitableDropdown(false);
-                  //   }
-
-                  //   setAnalysisLayers((prev) => {
-                  //     if (btn.key === "demand") {
-                  //       const nextDemand = !prev.demand;
-
-                  //       return {
-                  //         ...prev,
-                  //         demand: nextDemand,
-                  //         supply: nextDemand ? prev.supply : false,
-                  //         suitable_land: nextDemand
-                  //           ? prev.suitable_land
-                  //           : false,
-                  //         site_priority: nextDemand
-                  //           ? prev.site_priority
-                  //           : false,
-                  //         open_area: nextDemand ? prev.open_area : false,
-                  //       };
-                  //     }
-
-                  //     if (btn.key === "supply") {
-                  //       const nextSupply = !prev.supply;
-
-                  //       return {
-                  //         ...prev,
-                  //         supply: nextSupply,
-                  //         suitable_land: nextSupply
-                  //           ? prev.suitable_land
-                  //           : false,
-                  //         site_priority: nextSupply
-                  //           ? prev.site_priority
-                  //           : false,
-                  //       };
-                  //     }
-
-                  //     if (btn.key === "open_area") {
-                  //       return {
-                  //         ...prev,
-                  //         open_area: !prev.open_area,
-                  //       };
-                  //     }
-
-                  //     return prev;
-                  //   });
-
-                  //   setShowAnalysisOptions(true);
-                  // }}
-                  // onClick={() => {
-                  //   if (isDisabled) return;
-
-                  //   if (btn.key === "demand" && analysisLayers.demand) {
-                  //     setShowLandSuitableDropdown(false);
-                  //   }
-
-                  //   if (btn.key === "supply" && analysisLayers.supply) {
-                  //     setShowLandSuitableDropdown(false);
-                  //   }
-                  //   if (btn.key === "open_area" && analysisLayers.open_area) {
-                  //     setShowLandSuitableDropdown(fa)
-                  //   }
-                  //     setAnalysisLayers((prev) => {
-                  //       if (btn.key === "demand") {
-                  //         const nextDemand = !prev.demand;
-
-                  //         return {
-                  //           ...prev,
-                  //           demand: nextDemand,
-                  //           supply: nextDemand ? prev.supply : false,
-                  //           suitable_land: nextDemand
-                  //             ? prev.suitable_land
-                  //             : false,
-                  //           site_priority: nextDemand
-                  //             ? prev.site_priority
-                  //             : false,
-                  //         };
-                  //       }
-
-                  //       const nextSupply = !prev.supply;
-
-                  //       return {
-                  //         ...prev,
-                  //         supply: nextSupply,
-                  //         suitable_land: nextSupply
-                  //           ? prev.suitable_land
-                  //           : false,
-                  //         site_priority: nextSupply
-                  //           ? prev.site_priority
-                  //           : false,
-                  //       };
-                  //     });
-
-                  //   setShowAnalysisOptions(true);
-                  // }}
-                  // onClick={() => {
-                  //   if (isDisabled) return;
-
-                  //   if (btn.key === "demand" && analysisLayers.demand) {
-                  //     setShowLandSuitableDropdown(false);
-                  //   }
-
-                  //   if (btn.key === "supply" && analysisLayers.supply) {
-                  //     setShowLandSuitableDropdown(false);
-                  //   }
-
-                  //   setAnalysisLayers((prev) => {
-                  //     if (btn.key === "demand") {
-                  //       const nextDemand = !prev.demand;
-
-                  //       return {
-                  //         ...prev,
-                  //         demand: nextDemand,
-                  //         supply: nextDemand ? prev.supply : false,
-                  //         suitable_land: nextDemand
-                  //           ? prev.suitable_land
-                  //           : false,
-                  //         site_priority: nextDemand
-                  //           ? prev.site_priority
-                  //           : false,
-                  //       };
-                  //     }
-
-                  //     if (btn.key === "supply") {
-                  //       const nextSupply = !prev.supply;
-
-                  //       return {
-                  //         ...prev,
-                  //         supply: nextSupply,
-                  //         suitable_land: nextSupply
-                  //           ? prev.suitable_land
-                  //           : false,
-                  //         site_priority: nextSupply
-                  //           ? prev.site_priority
-                  //           : false,
-                  //       };
-                  //     }
-
-                  //     if (btn.key === "open_area") {
-                  //       return {
-                  //         ...prev,
-                  //         open_area: !prev.open_area,
-                  //       };
-                  //     }
-
-                  //     return prev;
-                  //   });
-
-                  //   setShowAnalysisOptions(true);
-                  // }}
                   className={`w-full px-3 py-2 text-sm rounded-md border border-white transition-all duration-200 flex items-center justify-between ${
                     isDisabled
                       ? "bg-[#133b5c] text-gray-500 opacity-60 cursor-not-allowed"
@@ -599,236 +438,213 @@ export default function AnalysisPanel({
         )}
 
         {/* ANALYSIS CARDS */}
-        {selectedTypes
-          .filter((type) => type !== "road_network3")
-          .map((type) => {
-            const item = analysisData[type];
-            if (!item) return null;
-            const lastZone = item.coreZones?.[item.coreZones.length - 1];
+        {isAnalysisOn &&
+          selectedTypes
+            .filter((type) => type !== "road_network3")
+            .map((type) => {
+              const item = analysisData[type];
+              if (!item) return null;
+              const lastZone = item.coreZones?.[item.coreZones.length - 1];
 
-            return (
-              <div key={type} className="bg-white p-3 rounded shadow-sm">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-sm">
-                    {TYPE_LABELS[type] || type}
-                  </span>
+              return (
+                <div key={type} className="bg-white p-3 rounded shadow-sm">
+                  {/* <div className="flex justify-between items-center">
+                    <span className="font-semibold text-sm">
+                      {(TYPE_LABELS[type] || type)?.charAt(0).toUpperCase() + (TYPE_LABELS[type] || type)?.slice(1).toLowerCase()}
+                    </span>
 
-                  <span className="font-bold text-blue-600 text-sm">
-                    {item.coreZones?.[item.coreZones.length - 1]
-                      ?.total_feature ?? item.point_count}
-                  </span>
-                </div>
+                    <span className="font-bold text-blue-600 text-sm">
+                      {item.coreZones?.[item.coreZones.length - 1]
+                        ?.total_feature ?? item.point_count}
+                    </span>
+                  </div> */}
 
-                <div className="mt-2 flex flex-col gap-3">
-                  {!openCoreZones[type] && item.coreZones?.length > 0 && (
-                    <div className="rounded-md border border-red-700 bg-red-100 p-2">
-                      <div className="space-y-1">
-                        {[
-                          {
-                            label: "Total Feature",
-                            value:
-                              item.coreZones[item.coreZones.length - 1]
-                                .total_feature,
-                          },
-                          {
-                            label: "Nearest Distance",
-                            value: `${Math.round(
-                              Number(
+                  <div className="mt-2 flex flex-col gap-3">
+                    {!openCoreZones[type] && item.coreZones?.length > 0 && (
+                      <div className="rounded-md border border-red-700 bg-red-100 p-2">
+                        <div className="space-y-1">
+                          {[
+                            {
+                              label: "Total Feature",
+                              value:
                                 item.coreZones[item.coreZones.length - 1]
-                                  .nearest_distance,
-                              ),
-                            )} m`,
-                          },
-                          {
-                            label: "Avg Distance",
-                            value: `${Math.round(
-                              Number(
+                                  .total_feature,
+                            },
+                            {
+                              label: "Nearest Distance",
+                              value: `${Math.round(
+                                Number(
+                                  item.coreZones[item.coreZones.length - 1]
+                                    .nearest_distance,
+                                ),
+                              )} m`,
+                            },
+                            {
+                              label: "Avg Distance",
+                              value: `${Math.round(
+                                Number(
+                                  item.coreZones[item.coreZones.length - 1]
+                                    .avg_distance,
+                                ),
+                              )} m`,
+                            },
+                            {
+                              label: "Density",
+                              value: Number(
                                 item.coreZones[item.coreZones.length - 1]
-                                  .avg_distance,
-                              ),
-                            )} m`,
-                          },
-                          {
-                            label: "Density",
-                            value: Number(
-                              item.coreZones[item.coreZones.length - 1].density,
-                            ).toFixed(2),
-                          },
-                        ].map((row) => (
-                          <div
-                            key={row.label}
-                            className="grid grid-cols-[1fr_auto] gap-2 text-xs text-gray-700"
-                          >
-                            <span>{row.label}</span>
-                            <span className="font-medium">{row.value}</span>
-                          </div>
-                        ))}
+                                  .density,
+                              ).toFixed(2),
+                            },
+                          ].map((row) => (
+                            <div
+                              key={row.label}
+                              className="grid grid-cols-[1fr_auto] gap-2 text-xs text-gray-700"
+                            >
+                              <span>{row.label}</span>
+                              <span className="font-medium">{row.value}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* <div className="flex justify-end">
-                  <button
-                  
-                    onClick={() => {
-                      const isOpening = !openCoreZones[type];
+                    <div className="flex justify-end">
+                      <button
+                        disabled={loadingCoreZones[type]}
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("close-core-analysis"),
+                          );
+                          const isOpening = !openCoreZones[type];
 
-                      setOpenCoreZones((prev) => ({
-                        ...prev,
-                        [type]: !prev[type],
-                      }));
+                          if (!isOpening) {
+                            setOpenCoreZones((prev) => ({
+                              ...prev,
+                              [type]: false,
+                            }));
 
-                      if (isOpening) {
-                        window.dispatchEvent(
-                          new CustomEvent("run-core-analysis"),
-                        );
-                      }
-                    }}
-                    className={`text-white text-xs transition px-3 py-1.5 rounded-full ${
-                      openCoreZones[type]
-                        ? "bg-orange-500 hover:bg-orange-600"
-                        : "bg-orange-400 hover:bg-orange-500"
-                    }`}
-                  >
-                    Core Analysis
-                  </button>
-                </div> */}
+                            setLoadingCoreZones((prev) => ({
+                              ...prev,
+                              [type]: false,
+                            }));
 
-                  <div className="flex justify-end">
-                    <button
-                      disabled={loadingCoreZones[type]}
-                      onClick={() => {
-                        window.dispatchEvent(
-                          new CustomEvent("close-core-analysis"),
-                        );
-                        const isOpening = !openCoreZones[type];
-
-                        if (!isOpening) {
-                          setOpenCoreZones((prev) => ({
-                            ...prev,
-                            [type]: false,
-                          }));
+                            return;
+                          }
 
                           setLoadingCoreZones((prev) => ({
-                            ...prev,
-                            [type]: false,
-                          }));
-
-                          return;
-                        }
-
-                        setLoadingCoreZones((prev) => ({
-                          ...prev,
-                          [type]: true,
-                        }));
-
-                        window.dispatchEvent(
-                          new CustomEvent("run-core-analysis"),
-                        );
-
-                        setTimeout(() => {
-                          setOpenCoreZones((prev) => ({
                             ...prev,
                             [type]: true,
                           }));
 
-                          setLoadingCoreZones((prev) => ({
-                            ...prev,
-                            [type]: false,
-                          }));
-                        }, 1000);
-                      }}
-                      className={`text-white text-xs transition px-3 py-1.5 rounded-full ${
-                        loadingCoreZones[type]
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : openCoreZones[type]
-                            ? "bg-orange-500 hover:bg-orange-600"
-                            : "bg-orange-400 hover:bg-orange-500"
-                      }`}
-                    >
-                      {loadingCoreZones[type]
-                        ? "Loading..."
-                        : "Concentric buffer analysis"}
-                    </button>
-                  </div>
+                          window.dispatchEvent(
+                            new CustomEvent("run-core-analysis"),
+                          );
 
-                  {openCoreZones[type] && item.coreZones?.length > 0 && (
-                    <div className="space-y-2 border-t pt-3">
-                      {item.coreZones.map((zoneItem) => {
-                        const zoneStyles = {
-                          1: {
-                            card: "border-green-700 bg-green-100",
-                            title: "text-green-700",
-                          },
-                          2: {
-                            card: "border-yellow-700 bg-yellow-100",
-                            title: "text-yellow-800",
-                          },
-                          3: {
-                            card: "border-blue-700 bg-blue-100",
-                            title: "text-blue-700",
-                          },
-                          4: {
-                            card: "border-red-700 bg-red-100",
-                            title: "text-red-700",
-                          },
-                        };
+                          setTimeout(() => {
+                            setOpenCoreZones((prev) => ({
+                              ...prev,
+                              [type]: true,
+                            }));
 
-                        const currentZoneStyle = zoneStyles[zoneItem.zone] || {
-                          card: "border-orange-900 bg-orange-50",
-                          title: "text-orange-700",
-                        };
-
-                        return (
-                          <div
-                            key={zoneItem.zone}
-                            className={`rounded-md border p-2 ${currentZoneStyle.card}`}
-                          >
-                            <div
-                              className={`mb-2 text-xs font-semibold ${currentZoneStyle.title}`}
-                            >
-                              {getZoneHeading(zoneItem.zone)}
-                            </div>
-
-                            <div className="space-y-1">
-                              {[
-                                {
-                                  label: "Total Feature",
-                                  value: zoneItem.total_feature,
-                                },
-                                {
-                                  label: "Nearest facility",
-                                  value: `${Math.round(Number(zoneItem.nearest_distance))} m`,
-                                },
-                                {
-                                  label: "Avg Distance",
-                                  value: `${Math.round(Number(zoneItem.avg_distance))} m`,
-                                },
-                                {
-                                  label: "Density",
-                                  value: Number(zoneItem.density).toFixed(2),
-                                },
-                              ].map((row) => (
-                                <div
-                                  key={row.label}
-                                  className="grid grid-cols-[1fr_auto] gap-2 text-xs text-gray-700"
-                                >
-                                  <span>{row.label}</span>
-                                  <span className="font-medium">
-                                    {row.value}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
+                            setLoadingCoreZones((prev) => ({
+                              ...prev,
+                              [type]: false,
+                            }));
+                          }, 1000);
+                        }}
+                        className={`text-white text-xs transition px-3 py-1.5 rounded-full ${
+                          loadingCoreZones[type]
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : openCoreZones[type]
+                              ? "bg-orange-500 hover:bg-orange-600"
+                              : "bg-orange-400 hover:bg-orange-500"
+                        }`}
+                      >
+                        {loadingCoreZones[type]
+                          ? "Loading..."
+                          : "Concentric buffer analysis"}
+                      </button>
                     </div>
-                  )}
+
+                    {openCoreZones[type] && item.coreZones?.length > 0 && (
+                      <div className="space-y-2 border-t pt-3">
+                        {item.coreZones.map((zoneItem) => {
+                          const zoneStyles = {
+                            1: {
+                              card: "border-green-700 bg-green-100",
+                              title: "text-green-700",
+                            },
+                            2: {
+                              card: "border-yellow-700 bg-yellow-100",
+                              title: "text-yellow-800",
+                            },
+                            3: {
+                              card: "border-blue-700 bg-blue-100",
+                              title: "text-blue-700",
+                            },
+                            4: {
+                              card: "border-red-700 bg-red-100",
+                              title: "text-red-700",
+                            },
+                          };
+
+                          const currentZoneStyle = zoneStyles[
+                            zoneItem.zone
+                          ] || {
+                            card: "border-orange-900 bg-orange-50",
+                            title: "text-orange-700",
+                          };
+
+                          return (
+                            <div
+                              key={zoneItem.zone}
+                              className={`rounded-md border p-2 ${currentZoneStyle.card}`}
+                            >
+                              <div
+                                className={`mb-2 text-xs font-semibold ${currentZoneStyle.title}`}
+                              >
+                                {getZoneHeading(zoneItem.zone)}
+                              </div>
+
+                              <div className="space-y-1">
+                                {[
+                                  {
+                                    label: "Total Feature",
+                                    value: zoneItem.total_feature,
+                                  },
+                                  {
+                                    label: "Nearest facility",
+                                    value: `${Math.round(Number(zoneItem.nearest_distance))} m`,
+                                  },
+                                  {
+                                    label: "Avg Distance",
+                                    value: `${Math.round(Number(zoneItem.avg_distance))} m`,
+                                  },
+                                  {
+                                    label: "Density",
+                                    value: Number(zoneItem.density).toFixed(2),
+                                  },
+                                ].map((row) => (
+                                  <div
+                                    key={row.label}
+                                    className="grid grid-cols-[1fr_auto] gap-2 text-xs text-gray-700"
+                                  >
+                                    <span>{row.label}</span>
+                                    <span className="font-medium">
+                                      {row.value}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
       </div>
     </div>
   );

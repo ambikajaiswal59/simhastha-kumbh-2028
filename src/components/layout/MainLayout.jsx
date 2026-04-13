@@ -362,7 +362,13 @@ export default function MainLayout() {
       window.dispatchEvent(new CustomEvent("clear-buffer-graphics"));
     }
   };
-
+/*************************** */
+  useEffect(() => {
+    if (!bufferValue.analysis.enabled) {
+      setAnalysisData({});
+    }
+  }, [bufferValue.analysis.enabled]);
+/********************************* */
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* HEADER */}
@@ -429,6 +435,7 @@ export default function MainLayout() {
               toiletSheet={toiletSheet}
               setToiletSheet={setToiletSheet}
               handleToiletAnalysis={handleToiletAnalysis}
+              isAnalysisOn={bufferValue.analysis.enabled}
             />
           </div>
         </Suspense>

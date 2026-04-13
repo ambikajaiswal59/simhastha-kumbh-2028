@@ -37,6 +37,8 @@ import MapLegend from "../Maplegend";
 
 import { Paper, Typography, Stack, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
+
 
 import LocationIcon from "../../assets/location.svg";
 import Om from "../../assets/Icon/temple.svg";
@@ -96,6 +98,8 @@ export default function OpenLayerMap({
   const lastClickedCoordinateRef = useRef(null);
   const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  const [showSwipeControl, setShowSwipeControl] = useState(true);
+
   // --------------------------------------------
   // ICON STYLE
   // -----------------------------
@@ -390,12 +394,25 @@ const openAreaLayerStyle = new Style({
       }),
     });
     //************************************************ */
+    // overlayRef.current = new Overlay({
+    //   element: popupRef.current,
+    //   positioning: "center-left", // 👈 anchor popup from left side
+    //   stopEvent: true,
+    //   offset: [0, 0], // 👉 push it to right
+    // });
     overlayRef.current = new Overlay({
       element: popupRef.current,
-      positioning: "center-left", // 👈 anchor popup from left side
+      positioning: "center-left",
       stopEvent: true,
-      offset: [0, 0], // 👉 push it to right
+      offset: [0, 0],
+      autoPan: {
+        margin: 20,
+        animation: {
+          duration: 250,
+        },
+      },
     });
+
 
     mapObj.current.addOverlay(overlayRef.current);
 
@@ -891,7 +908,7 @@ useEffect(() => {
     //   };
     if (bufferEnabledRef.current) {
       selectedRef.current.forEach((type) => {
-        fetchAnalysis(type, lat, lon);
+        // fetchAnalysis(type, lat, lon);
         fetchCoreAnalysis(type, lat, lon);
       });
 
@@ -1195,6 +1212,12 @@ useEffect(() => {
             source,
             style: createLayerStyle(type),
           });
+          if (type === "road_network3") {
+  layerObj.setZIndex(1);
+} else {
+  layerObj.setZIndex(2);
+}
+          
 
           mapObj.current.addLayer(layerObj);
           layerRef.current[type] = layerObj;
@@ -1347,26 +1370,26 @@ useEffect(() => {
   // -----------------------------
   // ANALYSIS API
   // -----------------------------
-  const fetchAnalysis = (type, lat, lon) => {
-    fetch(API.analysis, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        tableName: type,
-        latitude: lat,
-        longitude: lon,
-        bufferRadius: buffer * 1000,
-      }),
-    })
-      .then((res) => res.json())
-      .then((res) => {
-        if (res.status === "success") {
-          updateAnalysis(type, res.data);
-        }
-      });
-  };
+  // const fetchAnalysis = (type, lat, lon) => {
+  //   fetch(API.analysis, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //     },
+  //     body: JSON.stringify({
+  //       tableName: type,
+  //       latitude: lat,
+  //       longitude: lon,
+  //       bufferRadius: buffer * 1000,
+  //     }),
+  //   })
+  //     .then((res) => res.json())
+  //     .then((res) => {
+  //       if (res.status === "success") {
+  //         updateAnalysis(type, res.data);
+  //       }
+  //     });
+  // };
   /************************ */
   const fetchCoreAnalysis = (type, lat, lon) => {
     fetch(API.coreAnalysis, {
@@ -1376,9 +1399,9 @@ useEffect(() => {
       },
       body: JSON.stringify({
         tableName: type,
-        latitude: String(lat),
-        longitude: String(lon),
-        bufferRadius: String(bufferRef.current * 1000),
+        latitude: (lat),
+        longitude: (lon),
+        bufferRadius: (bufferRef.current * 1000),
       }),
     })
       .then((res) => res.json())
@@ -1396,7 +1419,14 @@ useEffect(() => {
       .catch(console.error);
   };
   /******** */
+  /***********/
+  useEffect(() => {
+    if (analysisLayers.demand && analysisLayers.supply) {
+      setShowSwipeControl(true);
+    }
+  }, [analysisLayers.demand, analysisLayers.supply]);
 
+  //*** */
   // -----------------------------
   // AOI API
   // -----------------------------
@@ -1667,34 +1697,68 @@ useEffect(() => {
       )}
 
       {/* SWIPE CONTROL */}
-      {analysisLayers.demand && analysisLayers.supply && (
-        <div
-          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 
+      {/* {analysisLayers.demand && analysisLayers.supply && ( */}
+      {analysisLayers.demand &&
+        analysisLayers.supply &&
+        (showSwipeControl ? (
+          <div
+            className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 
         bg-white/95 backdrop-blur-md px-5 py-3 rounded-xl 
         shadow-lg border w-[320px]"
-        >
-          {/* Header */}
-          <div className="text-sm font-semibold text-gray-700 text-center mb-2">
+          >
+            {/* Header */}
+            {/* <div className="text-sm font-semibold text-gray-700 text-center mb-2">
             Analysis
-          </div>
+          </div> */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold text-gray-700">
+                Analysis
+              </div>
 
-          {/* Labels */}
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
-            <span>Demand</span>
-            <span>Supply</span>
-          </div>
+              <IconButton
+                size="small"
+                onClick={() => setShowSwipeControl(false)}
+                sx={{ color: "#6b7280", padding: "2px" }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </div>
 
-          {/* Slider */}
-          <input
-            id="swipe"
-            type="range"
-            min="0"
-            max="100"
-            defaultValue="50"
-            className="w-full accent-orange-500 cursor-pointer"
-          />
-        </div>
-      )}
+            {/* Labels */}
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Demand</span>
+              <span>Supply</span>
+            </div>
+
+            {/* Slider */}
+            <input
+              id="swipe"
+              type="range"
+              min="0"
+              max="100"
+              defaultValue="50"
+              className="w-full accent-orange-500 cursor-pointer"
+              onInput={() => mapObj.current?.render()}
+            />
+          </div>
+        ) : (
+          <IconButton
+            onClick={() => setShowSwipeControl(true)}
+            sx={{
+              position: "absolute",
+              bottom: 64,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 50,
+              backgroundColor: "rgba(255,255,255,0.95)",
+              border: "1px solid #e5e7eb",
+              boxShadow: 3,
+              "&:hover": { backgroundColor: "#fff" },
+            }}
+          >
+            <CompareArrowsIcon fontSize="small" />
+          </IconButton>
+        ))}
 
       {/* LOADING LAYER OVERLAY */}
       {/* {loadingLayer && (
@@ -1724,15 +1788,3 @@ useEffect(() => {
     </div>
   );
 }
-/**
- 
-
-1.Worked on open area layer loading logic with delayed display and loader handling.
-2.keep the label name same as buttons and use gradient in openarea layer fill color and boundary color accordingly
-3.Fixed analysis checkbox dependency behavior so toilet layer removal also clears related analysis states.
-4.Improved core analysis behavior by aligning concentric buffer plot timing with table display 
-5.Verified sidebar, analysis panel, and map layer interactions for demand, supply, gap, and open area workflows.
-6.merge the latest code and push the code on github and verified the changes 
-7.gone through the
- 
-*/
