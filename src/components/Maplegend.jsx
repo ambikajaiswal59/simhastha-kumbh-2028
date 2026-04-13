@@ -4,32 +4,31 @@ import ToiletSantation from "../assets/Icon/toilets.svg";
 import PoliceStation from "../assets/Icon/police.svg";
 import Parking from "../assets/Icon/parking.svg";
 import Junction from "../assets/Icon/junction.svg";
+import Road from "../assets/Icon/road.svg"
 
 export default function MapLegend({ analysisLayers, selectedTypes }) {
   const layerLegendConfig = {
     toilets_sanitation: {
-      label: "Toilet",
+      label: "Toilets",
       icon: ToiletSantation,
     },
     police_station: {
-      label: "Police Station",
+      label: "Police Stations",
       icon: PoliceStation,
     },
     parking_loc: {
-      label: "Parking",
+      label: "Parking Areas",
       icon: Parking,
     },
-
     road_network3: {
-      label: "Road",
-      icon: "https://cdn-icons-png.flaticon.com/512/684/684809.png",
+      label: "Roads",
+      icon: Road,
     },
-
+    
     temple_ujjain: {
-      label: "Temple",
+      label: "Temples",
       icon: Om,
     },
-
     junction: {
       label: "Junctions",
       icon: Junction,

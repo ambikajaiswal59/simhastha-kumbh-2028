@@ -52,10 +52,15 @@ export default function MainLayout() {
   const sitePriorityFeaturesRef = useRef([]);
   const sitePriorityIndexRef = useRef(0);
   /***************************************/
-
+  // Analysis Settings
+  const [gridSize, setGridSize] = useState(50);
+  const [analysisTargetLayer, setAnalysisTargetLayer] = useState([]);
+  const [weightsState, setWeightsState] = useState({});
   // Land Suaitablity Dropdown state
   const [showLandSuitableDropdown, setShowLandSuitableDropdown] =
     useState(false);
+
+    const [analysisMode, setAnalysisMode] = useState(null);
 
   // 🔥 Update analysis data
   const updateAnalysis = (type, data) => {
@@ -106,17 +111,6 @@ export default function MainLayout() {
     mapObj.current.addLayer(highlightLayer);
     highlightLayerRef.current = highlightLayer;
   };
-
-  
-  // const handleToiletAnalysis = () => {
-  //   setAnalysingSitePriority(true);
-  //   const selectedFeatures = runAnalysis(proximity, toiletSheet);
-
-  //   setTimeout(() => {
-  //     highlightFeatures(selectedFeatures);
-  //   }, 5000);
-  // };
-
   
   //modified//
   const handleToiletAnalysis = () => {
@@ -247,14 +241,6 @@ export default function MainLayout() {
       point = geometry; // fallback (for Point)
     }
 
-    // return new Style({
-    //   geometry: point,
-    //   image: new Icon({
-    //     src: TenSeat,
-    //     scale: 0.10,
-    //     anchor: [0.5, 1],
-    //   }),
-    // });
     return new Style({
       geometry: point,
       image: new Icon({
@@ -393,6 +379,14 @@ export default function MainLayout() {
               showAnalysisOptions={showAnalysisOptions}
               bufferEnabled={bufferEnabled}
               handleBufferEnabled={handleBufferEnabled}
+              gridSize={gridSize}
+              setGridSize={setGridSize}
+              analysisTargetLayer={analysisTargetLayer}
+              setAnalysisTargetLayer={setAnalysisTargetLayer}
+              weightsState={weightsState}
+              setWeightsState={setWeightsState}
+              onRunDemand={() => setAnalysisMode("demand")}
+              onRunSupply={() => setAnalysisMode("supply")}
             />
           </div>
         </Suspense>
@@ -412,13 +406,18 @@ export default function MainLayout() {
               analysisLayers={analysisLayers}
               setBufferResults={setBufferResults}
               bufferEnabledRef={bufferEnabledRef}
+              gridSize={gridSize}
+              analysisTargetLayer={analysisTargetLayer}
+              weightsState={weightsState}
+              analysisMode={analysisMode}
+              setAnalysisMode={setAnalysisMode}
             />
           </div>
         </Suspense>
 
         {/* RIGHT PANEL */}
         <Suspense fallback={<div>Loading...</div>}>
-          <div className="w-[350px] h-full overflow-y-auto bg-[#0f2a44]">
+          <div className="w-[280px] h-full overflow-y-auto bg-[#0f2a44]">
             <AnalysisPanel
               buffer={buffer}
               selectedTypes={selectedTypes}

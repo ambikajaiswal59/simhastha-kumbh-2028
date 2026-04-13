@@ -63,9 +63,9 @@ export default function AnalysisPanel({
   };
 
   return (
-    <div className="w-80 h-full bg-gradient-to-b from-[#0f2a44] to-[#133b5c] p-4 border-l overflow-y-auto">
+    <div className="w-70 h-full bg-gradient-to-b from-[#0f2a44] to-[#133b5c] p-4 border-l overflow-y-auto">
       {/* HEADER */}
-      <h2 className="text-lg font-bold mb-4 text-white sticky top-0 bg-[#133b5c] py-2 z-10">
+      <h2 className="text-xl font-bold mb-4 text-yellow-400 sticky top-0  py-2 z-10">
         Analysis Results
       </h2>
 

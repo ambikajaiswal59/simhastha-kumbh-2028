@@ -46,6 +46,7 @@ import ToiletSantation from "../../assets/Icon/toilets.svg";
 import PoliceStation from "../../assets/Icon/police.svg";
 import Parking from "../../assets/Icon/parking.svg";
 import Junction from "../../assets/Icon/junction.svg";
+import { CleaningServices } from "@mui/icons-material";
 
 export default function OpenLayerMap({
   buffer,
@@ -58,6 +59,11 @@ export default function OpenLayerMap({
   setBufferResults,
   bufferEnabledRef,
   bottleneckZone,
+  gridSize,
+  analysisTargetLayer,
+  weightsState,
+  analysisMode,
+  setAnalysisMode,
 }) {
   const {
     mapRef,
@@ -74,6 +80,12 @@ export default function OpenLayerMap({
   const vectorLayerRef = useRef(null);
   const layerRef = useRef({});
   const demandLayerRef = useRef(null);
+  const demandAnalysisRef = useRef(
+    new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+    }),
+  );
   const supplyLayerRef = useRef(null);
   const aoiLayerRef = useRef(null);
   const [loadingLayer, setLoadingLayer] = useState(false);
@@ -181,16 +193,16 @@ export default function OpenLayerMap({
     });
   };
   //-------------------------------open area-layer style ----------------
-const openAreaLayerStyle = new Style({
-  fill: new Fill({
-    color: "rgba(60, 160, 60, 0.25)",
-    // forest green with low opacity
-  }),
-  stroke: new Stroke({
-    color: "red",
-    width:1,
-  }), // no boundary
-});;
+  const openAreaLayerStyle = new Style({
+    fill: new Fill({
+      color: "rgba(60, 160, 60, 0.25)",
+      // forest green with low opacity
+    }),
+    stroke: new Stroke({
+      color: "red",
+      width: 1,
+    }), // no boundary
+  });
   // -----------------------------
   // FETCH DEMAND
   // -----------------------------
@@ -232,40 +244,6 @@ const openAreaLayerStyle = new Style({
 
     setLoadingLayer(false);
   };
-  // -------------open area-------------------
-
-    // const fetchOpenAreaLayer = async () => {
-    //    if (!openAreaLayerRef.current) return;
-
-    //  clearTimeout(openAreaRef.current);
-    //  setLoadingLayer(true);
-    //  openAreaLayerRef.current.setVisible(false);
-
-    //   try {
-    //     if (openAreaLayerRef.current.getSource().getFeatures().length === 0) {
-    //       const res = await fetch(API.openArea);
-    //       const json = await res.json();
-
-    //       const features = new GeoJSON().readFeatures(json.data, {
-    //         dataProjection: "EPSG:4326",
-    //         featureProjection: "EPSG:3857",
-    //       });
-
-    //       openAreaLayerRef.current.getSource().addFeatures(features);
-           
-    //     } openAreaRef.current = setTimeout(() => {
-    //       openAreaLayerRef.current?.setVisible(true);
-    //       setLoadingLayer(false);
-    //     }, 20000)
-    //   }
-      
-    //     catch (err) {
-    //     console.error("Open area error:", err);
-    //   } finally {
-    //     setLoadingLayer(false);
-    //   }
-  // };
-  
 
   const fetchOpenAreaLayer = async () => {
     if (!openAreaLayerRef.current) return;
@@ -296,7 +274,6 @@ const openAreaLayerStyle = new Style({
       setLoadingLayer(false);
     }
   };
-
 
   // FETCH Gap
   // -----------------------------
@@ -374,8 +351,7 @@ const openAreaLayerStyle = new Style({
       visible: false,
     });
     //----------------
-    
-    
+
     mapObj.current = new Map({
       target: mapRef.current,
       layers: [
@@ -440,8 +416,6 @@ const openAreaLayerStyle = new Style({
       "Open Area Layer",
     );
     openAreaLayerRef.current.setZIndex(9997);
-
-
 
     scenerioSanitationRef.current = new VectorLayer({
       source: new VectorSource(),
@@ -535,6 +509,23 @@ const openAreaLayerStyle = new Style({
         }),
       ];
     });
+
+    if (demandAnalysisRef.current) {
+      demandAnalysisRef.current.setStyle((feature) => {
+        const demand = feature.get("Demand") || 0;
+
+        return new Style({
+          stroke: new Stroke({
+            color: "#333",
+            width: 0.5,
+          }),
+          fill: new Fill({
+            color: `rgba(255, 0, 0, ${Math.min(demand / 10, 0.8)})`,
+            // 🔥 higher demand = darker red
+          }),
+        });
+      });
+    }
     // -----------------------------
     // ADD LAYERS (ORDER MATTERS)
     // -----------------------------
@@ -547,6 +538,7 @@ const openAreaLayerStyle = new Style({
     mapObj.current.addLayer(scenerioSanitationRef.current);
     mapObj.current.addLayer(mlLayerRef.current);
     mapObj.current.addLayer(bottleneckLayerRef.current);
+    mapObj.current.addLayer(demandAnalysisRef.current);
     mapObj.current.addLayer(clickMarkerLayerRef.current);
 
     // -----------------------------
@@ -580,7 +572,7 @@ const openAreaLayerStyle = new Style({
       return;
     }
 
-    fetchData();
+    fetchEmptySpaces();
   }, [
     mlBuffer?.value,
     mlBuffer?.enabled,
@@ -596,48 +588,128 @@ const openAreaLayerStyle = new Style({
       clearBuffer(); // ✅ THIS FIXES IT
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-const fetchData = async () => {
-  try {
-    const res = await fetch(API.emptySpaces(mlBuffer.value));
-    const data = await res.json();
 
-    const spaces = data.data;
+  useEffect(() => {
+    if (!analysisMode) return;
 
-    if (spaces.length > 0) {
-      const format = new WKT();
+    const weights = {};
 
-      let combinedExtent = null;
+    analysisTargetLayer.forEach((layer) => {
+      weights[layer] = weightsState[layer] ?? 0;
+    });
 
-      spaces.forEach((space) => {
-        const geometry = format.readGeometry(space.space_wkt, {
-          dataProjection: "EPSG:32643",
-          featureProjection: "EPSG:3857",
-        });
+    const run = async () => {
+      if (analysisMode === "demand") {
+        await loadDemandData(gridSize, weights);
+      }
 
-        const extent = geometry.getExtent();
+      setAnalysisMode(null);
+    };
 
-        if (!combinedExtent) {
-          combinedExtent = extent;
-        } else {
-          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
-          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
-          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
-          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
-        }
+    run();
+  }, [analysisMode]);
+
+  // Kept function here for future use—once the backend is fixed, you can use it directly.
+  const fetchDemandAnalysisLayer = async ({ gridSize, weights }) => {
+    try {
+      debugger;
+      console.log(gridSize, weights);
+      const res = await fetch("http://192.168.1.27:8000/run-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gridSize,
+          weights,
+        }),
       });
 
-      // ✅ SAME centroid logic as bottleneck
-      const center = getCenter(combinedExtent);
+      const data = await res.json();
 
-      runMLBuffer(center[0], center[1], mlBuffer.value, true);
+      return data; // ✅ FIXED
+    } catch (err) {
+      console.error(err);
+      return null;
     }
+  };
 
-    drawMLPolygons(spaces);
+  const loadDemandData = async (gridSize, weights) => {
+    setLoadingLayer(true);
+    try {
+      const data = await fetchDemandAnalysisLayer({
+        gridSize,
+        weights,
+      });
 
-  } catch (err) {
-    console.error(err);
-  }
-};
+      if (data) {
+        drawDemandFeatures(data); // ✅ pass full response
+      }
+    } catch (err) {
+      console.error("Demand API error:", err);
+    } finally {
+      setLoadingLayer(false);
+    }
+  };
+
+  const drawDemandFeatures = (apiResponse) => {
+    if (!apiResponse?.features) return;
+
+    const source = demandAnalysisRef.current.getSource();
+    source.clear();
+
+    const format = new GeoJSON();
+
+    const features = format.readFeatures(apiResponse, {
+      dataProjection: "EPSG:32643", // ✅ from API
+      featureProjection: "EPSG:3857", // ✅ map projection
+    });
+
+    source.addFeatures(features);
+
+    demandAnalysisRef.current.setVisible(true);
+  };
+  const fetchEmptySpaces = async () => {
+    try {
+      const res = await fetch(API.emptySpaces(mlBuffer.value));
+      const data = await res.json();
+
+      const spaces = data.data;
+
+      if (spaces.length > 0) {
+        const format = new WKT();
+
+        let combinedExtent = null;
+
+        spaces.forEach((space) => {
+          const geometry = format.readGeometry(space.space_wkt, {
+            dataProjection: "EPSG:32643",
+            featureProjection: "EPSG:3857",
+          });
+
+          const extent = geometry.getExtent();
+
+          if (!combinedExtent) {
+            combinedExtent = extent;
+          } else {
+            combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+            combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+            combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+            combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+          }
+        });
+
+        // ✅ SAME centroid logic as bottleneck
+        const center = getCenter(combinedExtent);
+
+        runMLBuffer(center[0], center[1], mlBuffer.value, true);
+      }
+
+      drawMLPolygons(spaces);
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const drawMLPolygons = (spaces) => {
     if (!mlLayerRef.current) return;
 
@@ -679,65 +751,61 @@ const fetchData = async () => {
   // -----------------------------
   // Bottleneck Layer
   // -----------------------------
-useEffect(() => {
-  if (!analysisLayers.bottleneck) {
-    bottleneckLayerRef.current.getSource().clear();
-    bottleneckLayerRef.current.setVisible(false);
-    return;
-  }
-
-  loadBottleneckData(mlBuffer.value, bottleneckZone);
-
-}, [
-  analysisLayers.bottleneck,
-  mlBuffer.value,
-  mlBuffer.enabled,
-  bottleneckZone,
-]);
-
-const loadBottleneckData = async (radius, zone) => {
-  try {
-    const response = await fetch(
-      API.bottlenecks(radius, zone)
-    );
-    const result = await response.json();
-    const data = result.data;
-
-    if (data.length > 0) {
-      const format = new WKT();
-
-      let combinedExtent = null;
-
-      data.forEach((item) => {
-        const geometry = format.readGeometry(item.space_wkt, {
-          dataProjection: "EPSG:32643",
-          featureProjection: "EPSG:3857",
-        });
-
-        const extent = geometry.getExtent();
-
-        if (!combinedExtent) {
-          combinedExtent = extent;
-        } else {
-          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
-          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
-          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
-          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
-        }
-      });
-
-      // ✅ FINAL CENTER
-      const center = getCenter(combinedExtent);
-
-      runMLBuffer(center[0], center[1], radius, true);
+  useEffect(() => {
+    if (!analysisLayers.bottleneck) {
+      bottleneckLayerRef.current.getSource().clear();
+      bottleneckLayerRef.current.setVisible(false);
+      return;
     }
 
-    drawBottleneckFeatures(data);
+    loadBottleneckData(mlBuffer.value, bottleneckZone);
+  }, [
+    analysisLayers.bottleneck,
+    mlBuffer.value,
+    mlBuffer.enabled,
+    bottleneckZone,
+  ]);
 
-  } catch (err) {
-    console.error("Bottleneck API error:", err);
-  }
-};
+  const loadBottleneckData = async (radius, zone) => {
+    try {
+      const response = await fetch(API.bottlenecks(radius, zone));
+      const result = await response.json();
+      const data = result.data;
+
+      if (data.length > 0) {
+        const format = new WKT();
+
+        let combinedExtent = null;
+
+        data.forEach((item) => {
+          const geometry = format.readGeometry(item.space_wkt, {
+            dataProjection: "EPSG:32643",
+            featureProjection: "EPSG:3857",
+          });
+
+          const extent = geometry.getExtent();
+
+          if (!combinedExtent) {
+            combinedExtent = extent;
+          } else {
+            combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+            combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+            combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+            combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+          }
+        });
+
+        // ✅ FINAL CENTER
+        const center = getCenter(combinedExtent);
+
+        runMLBuffer(center[0], center[1], radius, true);
+      }
+
+      drawBottleneckFeatures(data);
+    } catch (err) {
+      console.error("Bottleneck API error:", err);
+    }
+  };
 
   const drawBottleneckFeatures = (data) => {
     const format = new WKT();
@@ -771,32 +839,33 @@ const loadBottleneckData = async (radius, zone) => {
     bottleneckLayerRef.current.changed();
   };
 
-const clearBuffer = () => {
-  // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
-  if (!bufferLayerRef.current) return;
+  const clearBuffer = () => {
+    // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
+    if (!bufferLayerRef.current) return;
 
-  bufferLayerRef.current.getSource().clear();
-  bufferGeometryRef.current = null;
-};
-
-// When buffer is globally disabled (both toggles OFF), clear buffer + popup
-useEffect(() => {
-  const handleClear = () => {
-    clearBuffer();
-
-    if (overlayRef.current) {
-      overlayRef.current.setPosition(undefined);
-    }
-
-    if (clickMarkerLayerRef.current) {
-      const src = clickMarkerLayerRef.current.getSource();
-      src && src.clear();
-    }
+    bufferLayerRef.current.getSource().clear();
+    bufferGeometryRef.current = null;
   };
 
-  window.addEventListener("clear-buffer-graphics", handleClear);
-  return () => window.removeEventListener("clear-buffer-graphics", handleClear);
-}, []);
+  // When buffer is globally disabled (both toggles OFF), clear buffer + popup
+  useEffect(() => {
+    const handleClear = () => {
+      clearBuffer();
+
+      if (overlayRef.current) {
+        overlayRef.current.setPosition(undefined);
+      }
+
+      if (clickMarkerLayerRef.current) {
+        const src = clickMarkerLayerRef.current.getSource();
+        src && src.clear();
+      }
+    };
+
+    window.addEventListener("clear-buffer-graphics", handleClear);
+    return () =>
+      window.removeEventListener("clear-buffer-graphics", handleClear);
+  }, []);
 
   // -----------------------------
   // LAYER FACTORY 🔥
@@ -848,7 +917,6 @@ useEffect(() => {
             bufferEnabledRef.current === false &&
             layerName === "ScenerioSanitation Layer"
           ) {
-
             setAnalysisData({});
             setPopupInfo(properties);
             overlayRef.current.setPosition(evt.coordinate);
@@ -997,7 +1065,7 @@ useEffect(() => {
       }
     }, 1000);
   };
-//=========================================
+  //=========================================
 
   ////************************************** ***********/
   useEffect(() => {
@@ -1009,8 +1077,7 @@ useEffect(() => {
       const [lon, lat] = toLonLat(coordinate);
 
       // drawCoreAnalysisCircles(); for sync the core button time plot cocentric on map
-         syncCoreAnalysisDraw(true);
-
+      syncCoreAnalysisDraw(true);
 
       selectedRef.current.forEach((type) => {
         fetchCoreAnalysis(type, lat, lon);
@@ -1038,7 +1105,7 @@ useEffect(() => {
     return () => {
       window.removeEventListener(
         "close-core-analysis",
-        handleCloseCoreAnalysis,   
+        handleCloseCoreAnalysis,
       );
       window.removeEventListener("run-core-analysis", handleCoreAnalysis);
     };
@@ -1112,7 +1179,7 @@ useEffect(() => {
       !demandLayerRef.current ||
       !supplyLayerRef.current ||
       !suitableLandRef.current ||
-      !openAreaLayerRef.current    //--open area layer----
+      !openAreaLayerRef.current //--open area layer----
     )
       return;
 
@@ -1124,13 +1191,12 @@ useEffect(() => {
       demandLayerRef.current.setVisible(false);
     }
     //OPEN-AREA
-        // if (analysisLayers.open_area) {
-        //   fetchOpenAreaLayer();
-        //   openAreaLayerRef.current.setVisible(true);
-        // } else {
-        //   openAreaLayerRef.current.setVisible(false);
-        // }
-
+    // if (analysisLayers.open_area) {
+    //   fetchOpenAreaLayer();
+    //   openAreaLayerRef.current.setVisible(true);
+    // } else {
+    //   openAreaLayerRef.current.setVisible(false);
+    // }
 
     // SUPPLY
     if (analysisLayers.supply) {
@@ -1156,7 +1222,6 @@ useEffect(() => {
       suitableLandRef.current.setVisible(false);
     }
   }, [analysisLayers]);
-
 
   //====== SEPRATE OPEN AREA========
   useEffect(() => {
