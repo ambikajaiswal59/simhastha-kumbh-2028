@@ -228,6 +228,7 @@ export default function Sidebar({
                         {[
                           { key: "demand", label: "Demand" },
                           { key: "supply", label: "Supply" },
+                          { key: "supply", label: "Open Area" },
                         ].map((item) => (
                           <label
                             key={item.key}
