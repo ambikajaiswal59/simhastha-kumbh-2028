@@ -366,7 +366,7 @@ export default function MainLayout() {
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT SIDEBAR */}
         <Suspense fallback={<div>Loading...</div>}>
-          <div className="w-72 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
+          <div className="w-78 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
             <Sidebar
               bufferValue={bufferValue}
               bottleneckZone={bottleNeckZone}
