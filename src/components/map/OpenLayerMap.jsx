@@ -86,6 +86,12 @@ export default function OpenLayerMap({
       visible: false,
     }),
   );
+  const supplyAnalysisRef = useRef(
+    new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+    }),
+  );
   const supplyLayerRef = useRef(null);
   const aoiLayerRef = useRef(null);
   const [loadingLayer, setLoadingLayer] = useState(false);
@@ -526,6 +532,23 @@ export default function OpenLayerMap({
         });
       });
     }
+
+    if (supplyAnalysisRef.current) {
+      supplyAnalysisRef.current.setStyle((feature) => {
+        const supply = feature.get("supply") || 0;
+
+        return new Style({
+          stroke: new Stroke({
+            color: "#333",
+            width: 0.5,
+          }),
+          fill: new Fill({
+            color: `rgba(255, 0, 0, ${Math.min(supply / 10, 0.8)})`,
+            // 🔥 higher demand = darker red
+          }),
+        });
+      });
+    }
     // -----------------------------
     // ADD LAYERS (ORDER MATTERS)
     // -----------------------------
@@ -539,6 +562,7 @@ export default function OpenLayerMap({
     mapObj.current.addLayer(mlLayerRef.current);
     mapObj.current.addLayer(bottleneckLayerRef.current);
     mapObj.current.addLayer(demandAnalysisRef.current);
+    mapObj.current.addLayer(supplyAnalysisRef.current);
     mapObj.current.addLayer(clickMarkerLayerRef.current);
 
     // -----------------------------
@@ -590,49 +614,53 @@ export default function OpenLayerMap({
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
 
   useEffect(() => {
+    debugger
     if (!analysisMode) return;
-
+  
     const weights = {};
-
+  
     analysisTargetLayer.forEach((layer) => {
       weights[layer] = weightsState[layer] ?? 0;
     });
-
+  
     const run = async () => {
+      debugger
       if (analysisMode === "demand") {
         await loadDemandData(gridSize, weights);
       }
-
+  
+      if (analysisMode === "supply") {
+        await loadSupplyData(gridSize);
+      }
+  
       setAnalysisMode(null);
     };
-
+  
     run();
   }, [analysisMode]);
 
   // Kept function here for future use—once the backend is fixed, you can use it directly.
-  // const fetchDemandAnalysisLayer = async ({ gridSize, weights }) => {
-  //   try {
-  //     debugger;
-  //     console.log(gridSize, weights);
-  //     const res = await fetch("http://192.168.1.27:8000/run-analysis", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         gridSize,
-  //         weights,
-  //       }),
-  //     });
-  //     console.log(gridSize,weights)
-  //     const data = await res.json();
+  const fetchDemandAnalysisLayer = async ({ gridSize, weights }) => {
+    try {
+      debugger;
+      const res = await fetch("http://192.168.1.27:8000/run-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gridSize,
+          weights,
+        }),
+      });
+      const data = await res.json();
 
-  //     return data; // ✅ FIXED
-  //   } catch (err) {
-  //     console.error(err);
-  //     return null;
-  //   }
-  // };
+      return data; // ✅ FIXED
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  };
 
   const loadDemandData = async (gridSize, weights) => {
     setLoadingLayer(true);
@@ -669,6 +697,56 @@ export default function OpenLayerMap({
 
     demandAnalysisRef.current.setVisible(true);
   };
+
+
+
+const fetchSupplyAnalysisLayer = async ({ gridSize }) => {
+  try {
+    const res = await fetch("http://192.168.1.27:8000/run-supply-analysis", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ gridSize }),
+    });
+
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error("Error fetching supply analysis layer:", err);
+    return null;
+  }
+};
+const loadSupplyData = async (gridSize) => {
+  setLoadingLayer(true);
+  try {
+    const data = await fetchSupplyAnalysisLayer({ gridSize });
+
+    if (data) {
+      drawSupplyFeatures(data);
+    }
+  } catch (err) {
+    console.error("Supply API error:", err);
+  } finally {
+    setLoadingLayer(false);
+  }
+};
+const drawSupplyFeatures = (apiResponse) => {
+  if (!apiResponse?.features) return;
+
+  const source = supplyAnalysisRef.current.getSource();
+  source.clear();
+
+  const format = new GeoJSON();
+
+  const features = format.readFeatures(apiResponse, {
+    dataProjection: "EPSG:32643",
+    featureProjection: "EPSG:3857",
+  });
+
+  source.addFeatures(features);
+  supplyAnalysisRef.current.setVisible(true);
+};
   const fetchEmptySpaces = async () => {
     try {
       const res = await fetch(API.emptySpaces(mlBuffer.value));
