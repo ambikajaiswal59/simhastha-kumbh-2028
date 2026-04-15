@@ -118,13 +118,26 @@ export default function Sidebar({
       updated = selected.filter((l) => l.table_name !== layer.table_name);
 
       //  RESET ANALYSIS if toilets removed
+      // if (layer.table_name === "toilets_sanitation") {
+      //   setAnalysisLayers({
+      //     demand: false,
+      //     supply: false,
+      //     open_area: false,
+      //   });
+      // }
       if (layer.table_name === "toilets_sanitation") {
-        setAnalysisLayers({
+        setAnalysisLayers((prev) => ({
+          ...prev,
           demand: false,
           supply: false,
+          suitable_land: false,
+          site_priority: false,
           open_area: false,
-        });
+        }));
+
+        window.dispatchEvent(new Event("clear-site-priority"));
       }
+
     } else {
       updated = [...selected, layer];
     }
