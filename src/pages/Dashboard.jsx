@@ -13,6 +13,7 @@ import { fromLonLat, toLonLat } from "ol/proj";
 import { Style, Stroke, Fill, Icon as OLIcon, Circle, Text } from "ol/style";
 import "ol/ol.css";
 import { API } from "../config/api";
+import Switcher from "../components/layout/Switcher";
 
 // ── 1. Yellow dot for selected point on AOI ────────────────────────────────────────────────────────
 function isNearRoute(pointCoord, routeCoords, threshold = 10) {
@@ -34,7 +35,7 @@ function isNearRoute(pointCoord, routeCoords, threshold = 10) {
 }
 
 
-function Dashboard() {
+function Dashboard({ setActiveSwitcher }) {
   const [mapMessage, setMapMessage] = useState("");
   const [roads, setRoads] = useState(null);
   const [ghats, setGhats] = useState(null);
@@ -106,20 +107,8 @@ function Dashboard() {
 
   // ── 1. Initialize map ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!mapDivRef.current) return; // Guard if ref not ready
-
-    // Clean up any previous map if necessary
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setTarget(null);
-      mapInstanceRef.current = null;
-    }
-
-    // Prevent map initialization if div is not mounted
-    const targetElement = mapDivRef.current;
-    if (!targetElement) return;
-
     const map = new Map({
-      target: targetElement,
+      target: mapDivRef.current,
       layers: [new TileLayer({ source: new OSM() })],
       view: new View({
         center: fromLonLat([75.768, 23.182]),
@@ -269,18 +258,17 @@ function Dashboard() {
 
   // ── 6. Load AOI + Roads + Intersections ─────────────────────────────────────
   useEffect(() => {
-    fetch("http://192.168.1.16:3355/aoi")
-    // fetch(API.aoi)
+    fetch(API.routingAOI)
       .then((res) => res.json())
       .then((data) => setAoi(data))
       .catch((err) => console.error("AOI Error:", err));
-      fetch("http://192.168.1.16:3355/roads")
-    // fetch(API.roads)
+
+    fetch(API.roads)
       .then((res) => res.json())
       .then((data) => setRoads(data))
       .catch((err) => console.error("Road Error:", err));
-      fetch("http://192.168.1.16:3355/intersections")
-    // fetch(API.intersections)
+
+    fetch(API.intersections)
       .then((res) => res.json())
       .then((data) => setIntersections(data))
       .catch((err) => console.error("Intersections Error:", err));
@@ -685,7 +673,7 @@ function Dashboard() {
     stopWalkingAnimation();
 
     try {
-      const res = await fetch("http://192.168.1.16:3355/shortest-path", {
+      const res = await fetch(API.shortestPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -749,15 +737,15 @@ function Dashboard() {
   // ── TOGGLES ──────────────────────────────────────────────────────────────────
   const toggleRoads = () => {
     if (roads) { setRoads(null); }
-    else { fetch("http://192.168.1.16:3355/roads").then((r) => r.json()).then(setRoads); }
+    else { fetch(API.roads).then((r) => r.json()).then(setRoads); }
   };
   const toggleGhats = () => {
     if (ghats) { setGhats(null); }
-    else { fetch("http://192.168.1.16:3355/ghats").then((r) => r.json()).then(setGhats); }
+    else { fetch(API.ghats).then((r) => r.json()).then(setGhats); }
   };
   const toggleRiver = () => {
     if (river) { setRiver(null); }
-    else { fetch("http://192.168.1.16:3355/river").then((r) => r.json()).then(setRiver); }
+    else { fetch(API.river).then((r) => r.json()).then(setRiver); }
   };
 
   // ── RESET ────────────────────────────────────────────────────────────────────
@@ -797,16 +785,19 @@ function Dashboard() {
   return (
     <div className="flex h-screen font-sans">
 
-      <div className="bg-gradient-to-b from-[#0f2a44] to-[#0a1e33] text-white flex flex-col shadow-[4px_0_16px_rgba(0,0,0,0.5)]">
+      {/* Sidebar */}
+      <div className="w-72  overflow-y-auto shadow-[4px_0_16px_rgba(0,0,0,0.5)] bg-gradient-to-b from-[#0f2a44] to-[#0a1e33] text-white">
+        {/* Panel Header */}
+          <Switcher 
+            activeSwitcher="routing" 
+            setActiveSwitcher={setActiveSwitcher} 
+          />
         <div className="bg-gradient-to-br from-[#0a1e33] to-[#1e3a52] p-5 text-center border-b-2 border-blue-500 flex-shrink-0">
-          <div className="text-lg font-bold tracking-wide mb-2">Routing Panel</div>
+          <div className="text-lg font-bold tracking-wide mb-2">
+            Routing Panel
+          </div>
           <div
-            className={`
-              inline-block
-              px-3 py-1.5 rounded-full
-              text-xs font-bold tracking-wide
-              shadow-md
-            `}
+            className={`inline-block text-white px-3 py-1.5 rounded-full text-xs font-bold tracking-wide`}
             style={{
               background: modeBadgeColor[mode],
               boxShadow: `0 0 15px ${modeBadgeColor[mode]}44`
@@ -816,59 +807,48 @@ function Dashboard() {
           </div>
         </div>
 
+        {/* Stats */}
         <div className="p-4 border-b border-[#1e4060] flex-shrink-0">
-
-          <div className="bg-[#1e3a52] rounded-xl p-3.5 text-[13px] text-slate-300 grid grid-cols-2 gap-3">
-
+          <div className="bg-[#1e3a52] rounded-xl p-3.5 text-sm text-slate-300 grid grid-cols-2 gap-3">
             {/* Waypoints */}
-            <div className="bg-[rgba(34,197,85,0.1)] border-l-[3px] border-green-500 rounded-md p-1.5">
+            <div className="bg-[rgba(34,197,85,0.1)] border-l-4 border-green-500 rounded-md p-1.5">
               <span className="text-green-500 mr-1"></span>
               <b>Waypoints:</b> {waypoints.length}
             </div>
-
             {/* Blocked */}
-            <div className="bg-[rgba(239,68,68,0.1)] border-l-[3px] border-red-500 rounded-md p-1.5">
+            <div className="bg-[rgba(239,68,68,0.1)] border-l-4 border-red-500 rounded-md p-1.5">
               <span className="text-red-500 mr-1"></span>
               <b>Blocked:</b> {blockedPoints.length}
             </div>
-
-            {/* Total Distance (full width row) */}
-            <div className="col-span-2 bg-[rgba(99,102,241,0.1)] border-l-[3px] border-indigo-500 rounded-md p-2 text-center text-[14px] font-semibold">
+            {/* Total Distance */}
+            <div className="col-span-2 bg-[rgba(99,102,241,0.1)] border-l-4 border-indigo-500 rounded-md p-2 text-center text-base font-semibold">
               <span className="text-indigo-500 mr-1.5"></span>
               Total Distance: {totalDistance ? `${totalDistance} km` : "0 km"}
             </div>
-
           </div>
         </div>
 
+        {/* Controls */}
         <div className="p-4 border-b border-[#1e4060] flex-shrink-0">
-          <div className="text-[11px] text-slate-400 mb-3 uppercase tracking-[0.12em] font-semibold">
+          <div className="text-[11px] text-slate-400 mb-3 uppercase tracking-widest font-semibold">
             Routing Controls
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 mb-2.5">
             <button
-              className={`
-                py-2 px-2 rounded-xl
-                text-white text-[13px] font-semibold
-                transition-all
-                ${mode === "waypoint"
-                  ? "bg-amber-500 border-2 border-amber-500 font-bold shadow"
-                  : "bg-[#1e3a52] border-2 border-transparent hover:border-amber-500"}
-              `}
+              className={`py-2.5 px-2.5 rounded-xl font-semibold text-white text-sm border-2 transition-all duration-300 shadow ${mode === "waypoint"
+                ? "bg-amber-500 border-amber-500 font-bold shadow-[0_0_12px_#f59e0b99] -translate-y-0.5"
+                : "bg-[#1e3a52] border-transparent"
+                }`}
               onClick={() => setMode("waypoint")}
             >
               Waypoint
             </button>
             <button
-              className={`
-                py-2 px-2 rounded-xl
-                text-white text-[13px] font-semibold
-                transition-all
-                ${mode === "block"
-                  ? "bg-red-500 border-2 border-red-500 font-bold shadow"
-                  : "bg-[#1e3a52] border-2 border-transparent hover:border-red-500"}
-              `}
+              className={`py-2.5 px-2.5 rounded-xl font-semibold text-white text-sm border-2 transition-all duration-300 shadow ${mode === "block"
+                ? "bg-red-500 border-red-500 font-bold shadow-[0_0_12px_#ef444499] -translate-y-0.5"
+                : "bg-[#1e3a52] border-transparent"
+                }`}
               onClick={() => setMode("block")}
             >
               Block Road
@@ -876,13 +856,7 @@ function Dashboard() {
           </div>
 
           <button
-            className={`
-              py-2 w-full rounded-xl mb-2.5
-              ${loading
-                ? "bg-indigo-500 opacity-60"
-                : "bg-indigo-500 hover:bg-indigo-600"}
-              text-white font-semibold text-[13px] transition
-            `}
+            className={`py-2.5 px-2.5 rounded-xl bg-indigo-500 w-full mb-2.5 text-white font-semibold text-sm border-2 border-indigo-500 transition-all duration-300 shadow ${loading ? "opacity-60 cursor-not-allowed" : ""}`}
             onClick={fetchRoute}
             disabled={loading}
           >
@@ -890,7 +864,7 @@ function Dashboard() {
           </button>
 
           <button
-            className="py-2 w-full rounded-xl mb-2.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-[13px] transition"
+            className="py-2.5 px-2.5 rounded-xl bg-violet-500 w-full mb-2.5 text-white font-semibold text-sm border-2 border-violet-500 transition-all duration-300 shadow"
             onClick={() => {
               if (waypoints.length > 0) {
                 setWaypoints(waypoints.slice(0, -1));
@@ -905,7 +879,7 @@ function Dashboard() {
           </button>
 
           <button
-            className="py-2 w-full rounded-xl mb-2.5 bg-pink-500 hover:bg-pink-600 text-white font-semibold text-[13px] transition"
+            className="py-2.5 px-2.5 rounded-xl bg-pink-500 w-full mb-2.5 text-white font-semibold text-sm border-2 border-pink-500 transition-all duration-300 shadow"
             onClick={() => {
               if (blockedPoints.length > 0) {
                 setBlockedPoints(blockedPoints.slice(0, -1));
@@ -921,102 +895,84 @@ function Dashboard() {
           </button>
 
           <button
-            className="py-2 w-full rounded-xl bg-red-400 hover:bg-red-600 text-white font-semibold text-[13px] font-bold transition"
+            className="py-2.5 px-2.5 rounded-xl bg-red-400 w-full text-white font-semibold text-sm border-2 border-red-400 transition-all duration-300 shadow"
+            style={{ fontSize: 13, fontWeight: 600 }}
             onClick={resetAll}
           >
             Reset All
           </button>
         </div>
 
+        {/* Map Layers */}
         <div className="p-4 border-b border-[#1e4060] flex-shrink-0">
-          <div className="text-[11px] text-slate-400 mb-3 uppercase tracking-[0.12em] font-semibold">
+          <div className="text-[11px] text-slate-400 mb-3 uppercase tracking-widest font-semibold">
             Map Layers
           </div>
           <div className="flex flex-col gap-2">
             <button
               className={`
-                flex justify-between items-center py-2 px-3
-                rounded-xl
-                ${roads
-                  ? "bg-[#1e3a52] border-2 border-blue-500 shadow"
-                  : "bg-[#162a3d] border-2 border-[#1e4060]"}
-                text-white text-[13px] transition
+                flex justify-between items-center px-3.5 py-2.5 rounded-xl w-full
+                text-white text-sm border-2 transition-all duration-300
+                ${!!roads ? "bg-[#1e3a52] border-blue-500 shadow-[0_0_8px_#3b82f644]" : "bg-[#162a3d] border-[#1e4060]"}
               `}
               onClick={toggleRoads}
             >
               <span> Roads</span>
-              <span
-                className={`
-                  text-[11px] font-bold px-2 py-1
-                  rounded-full
-                  ${roads ? "bg-green-500" : "bg-slate-600"}
-                  text-white tracking-wide transition
-                `}
-              >{roads ? "ON" : "OFF"}</span>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
+                ${!!roads ? "bg-green-500" : "bg-slate-600"}
+              `}>
+                {roads ? "ON" : "OFF"}
+              </span>
             </button>
-
             <button
               className={`
-                flex justify-between items-center py-2 px-3
-                rounded-xl
-                ${ghats
-                  ? "bg-[#1e3a52] border-2 border-blue-500 shadow"
-                  : "bg-[#162a3d] border-2 border-[#1e4060]"}
-                text-white text-[13px] transition
+                flex justify-between items-center px-3.5 py-2.5 rounded-xl w-full
+                text-white text-sm border-2 transition-all duration-300
+                ${!!ghats ? "bg-[#1e3a52] border-blue-500 shadow-[0_0_8px_#3b82f644]" : "bg-[#162a3d] border-[#1e4060]"}
               `}
               onClick={toggleGhats}
             >
               <span> Ghats</span>
-              <span
-                className={`
-                  text-[11px] font-bold px-2 py-1
-                  rounded-full
-                  ${ghats ? "bg-green-500" : "bg-slate-600"}
-                  text-white tracking-wide transition
-                `}
-              >{ghats ? "ON" : "OFF"}</span>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
+                ${!!ghats ? "bg-green-500" : "bg-slate-600"}
+              `}>
+                {ghats ? "ON" : "OFF"}
+              </span>
             </button>
-
             <button
               className={`
-                flex justify-between items-center py-2 px-3
-                rounded-xl
-                ${river
-                  ? "bg-[#1e3a52] border-2 border-blue-500 shadow"
-                  : "bg-[#162a3d] border-2 border-[#1e4060]"}
-                text-white text-[13px] transition
+                flex justify-between items-center px-3.5 py-2.5 rounded-xl w-full
+                text-white text-sm border-2 transition-all duration-300
+                ${!!river ? "bg-[#1e3a52] border-blue-500 shadow-[0_0_8px_#3b82f644]" : "bg-[#162a3d] border-[#1e4060]"}
               `}
               onClick={toggleRiver}
             >
               <span> River</span>
-              <span
-                className={`
-                  text-[11px] font-bold px-2 py-1
-                  rounded-full
-                  ${river ? "bg-green-500" : "bg-slate-600"}
-                  text-white tracking-wide transition
-                `}
-              >{river ? "ON" : "OFF"}</span>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
+                ${!!river ? "bg-green-500" : "bg-slate-600"}
+              `}>
+                {river ? "ON" : "OFF"}
+              </span>
             </button>
           </div>
         </div>
 
-        <div className="mt-auto py-3.5 px-4 border-t border-[#1e4060] text-[11px] text-slate-600 text-center flex-shrink-0 bg-black/30">
+        {/* Footer */}
+        <div className="mt-auto py-3.5 px-4 border-t border-[#1e4060] text-[11px] text-slate-600 text-center flex-shrink-0 bg-black bg-opacity-30">
           <div className="font-semibold mb-1">Ujjain Maha Kumbh</div>
         </div>
       </div>
 
+      {/* Map Area */}
       <div className="flex-1 relative">
         <div ref={mapDivRef} className="h-full w-full" />
         {mapMessage && (
           <div
             className={`
-              absolute top-5 left-1/2
-              transform -translate-x-1/2
+              absolute left-1/2 top-5
+              -translate-x-1/2
+              text-white px-6 py-3 rounded-xl font-semibold z-[9999] pointer-events-none text-base shadow-[0_4px_12px_rgba(0,0,0,0.3)]
               ${mapMessage.includes("❌") ? "bg-red-500" : "bg-green-500"}
-              text-white px-6 py-3 rounded-xl
-              font-semibold z-[9999] pointer-events-none
-              text-[14px] shadow-lg
             `}
           >
             {mapMessage}
@@ -1027,54 +983,4 @@ function Dashboard() {
   );
 }
 
-const btnStyle = (active, activeColor = "#1e90ff") => ({
-  padding: "11px 10px",
-  background: active ? activeColor : "#1e3a52",
-  border: `2px solid ${active ? activeColor : "transparent"}`,
-  borderRadius: "10px", color: "white", fontSize: "13px",
-  cursor: "pointer", fontWeight: active ? "700" : "600",
-  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-  boxShadow: active ? `0 0 12px ${activeColor}66` : "0 2px 4px rgba(0,0,0,0.2)",
-  transform: active ? "translateY(-2px)" : "translateY(0)",
-});
-
-const layerBtnStyle = (active) => ({
-  display: "flex", justifyContent: "space-between", alignItems: "center",
-  padding: "11px 14px",
-  background: active ? "#1e3a52" : "#162a3d",
-  border: `2px solid ${active ? "#3b82f6" : "#1e4060"}`,
-  borderRadius: "10px", color: "white", fontSize: "13px",
-  cursor: "pointer", width: "100%", transition: "all 0.3s",
-  boxShadow: active ? "0 0 8px #3b82f644" : "none",
-});
-
-const togglePillStyle = (active) => ({
-  fontSize: "11px", fontWeight: "700", padding: "4px 10px",
-  borderRadius: "12px", background: active ? "#22c55e" : "#475569",
-  color: "white", letterSpacing: "0.5px",
-  transition: "all 0.3s",
-});
-
 export default Dashboard;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
