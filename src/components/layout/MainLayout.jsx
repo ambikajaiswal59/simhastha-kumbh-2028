@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import Header from "./Header";
 import { useMapContext } from "../../context/MapContext";
 import { Style, Icon, Text, Fill, Stroke } from "ol/style";
-
+import Dashboard from "../../pages/Dashboard";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import TenSeat from "../../assets/Icon/T1.png";
@@ -12,6 +12,7 @@ import { set } from "ol/transform";
 const OpenLayerMap = lazy(() => import("../map/OpenLayerMap"));
 const AnalysisPanel = lazy(() => import("../analysis/AnalysisPanel"));
 const Sidebar = lazy(() => import("./Sidebar"));
+const Switcher = lazy(() => import("./Switcher"));
 
 export default function MainLayout() {
   const {
@@ -38,7 +39,7 @@ export default function MainLayout() {
     analysis: { enabled: false, value: 100 },
     ml: { enabled: false, value: 100 },
   });
-
+  const [activeSwitcher, setActiveSwitcher] = useState("layer");
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [bufferResults, setBufferResults] = useState([]);
   const [bottleNeckZone, setBottleNeckZone] = useState("ALL");
@@ -60,7 +61,7 @@ export default function MainLayout() {
   const [showLandSuitableDropdown, setShowLandSuitableDropdown] =
     useState(false);
 
-    const [analysisMode, setAnalysisMode] = useState(null);
+  const [analysisMode, setAnalysisMode] = useState(null);
 
   // 🔥 Update analysis data
   const updateAnalysis = (type, data) => {
@@ -111,7 +112,7 @@ export default function MainLayout() {
     mapObj.current.addLayer(highlightLayer);
     highlightLayerRef.current = highlightLayer;
   };
-  
+
   //modified//
   const handleToiletAnalysis = () => {
     clearTimeout(sitePriorityTimerRef.current);
@@ -120,11 +121,9 @@ export default function MainLayout() {
 
     setAnalysingSitePriority(true);
 
-  const selectedFeatures = runAnalysis(proximity, toiletSheet);
+    const selectedFeatures = runAnalysis(proximity, toiletSheet);
     // sitePriorityFeaturesRef.current = selectedFeatures.map((f) => f.clone());//******* */
     sitePriorityFeaturesRef.current = selectedFeatures;
-
-  
 
     if (highlightLayerRef.current) {
       highlightLayerRef.current.getSource().clear();
@@ -256,7 +255,6 @@ export default function MainLayout() {
         stroke: new Stroke({ color: "#ffffff", width: 3 }),
       }),
     });
-
   };
 
   const runAnalysis = (selectedPriorities, totalCabinsRequired) => {
@@ -332,7 +330,6 @@ export default function MainLayout() {
       const featureClone = d.feature.clone();
       featureClone.set("toiletCount", assign);
       selectedFeatures.push(featureClone);
-
     }
 
     return selectedFeatures;
@@ -348,95 +345,108 @@ export default function MainLayout() {
       window.dispatchEvent(new CustomEvent("clear-buffer-graphics"));
     }
   };
-/*************************** */
+  /*************************** */
   useEffect(() => {
     if (!bufferValue.analysis.enabled) {
       setAnalysisData({});
     }
   }, [bufferValue.analysis.enabled]);
-/********************************* */
+  /********************************* */
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* HEADER */}
       <div className="h-24 flex-shrink-0">
         <Header />
       </div>
-
+      {/* <Switcher
+        activeSwitcher={activeSwitcher}
+        setActiveSwitcher={setActiveSwitcher}
+      /> */}
       {/* MAIN CONTENT */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT SIDEBAR */}
-        <Suspense fallback={<div>Loading...</div>}>
-          <div className="w-78 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
-            <Sidebar
-              bufferValue={bufferValue}
-              bottleneckZone={bottleNeckZone}
-              setBottleneckZone={setBottleNeckZone}
-              setBufferValue={setBufferValue}
-              setBuffer={setBuffer}
-              setSelectedLayers={setSelectedTypes}
-              analysisLayers={analysisLayers}
-              setAnalysisLayers={setAnalysisLayers}
-              showAnalysisOptions={showAnalysisOptions}
-              bufferEnabled={bufferEnabled}
-              handleBufferEnabled={handleBufferEnabled}
-              gridSize={gridSize}
-              setGridSize={setGridSize}
-              analysisTargetLayer={analysisTargetLayer}
-              setAnalysisTargetLayer={setAnalysisTargetLayer}
-              weightsState={weightsState}
-              setWeightsState={setWeightsState}
-              onRunDemand={() => setAnalysisMode("demand")}
-              onRunSupply={() => setAnalysisMode("supply")}
-            />
-          </div>
-        </Suspense>
+        {activeSwitcher && activeSwitcher === "layer" && (
+          <Suspense fallback={<div>Loading...</div>}>
+            <div className="w-72 h-full overflow-y-auto bg-gradient-to-b from-[#0f2a44] to-[#133b5c]">
+              <Sidebar
+                bufferValue={bufferValue}
+                bottleneckZone={bottleNeckZone}
+                setBottleneckZone={setBottleNeckZone}
+                setBufferValue={setBufferValue}
+                setBuffer={setBuffer}
+                setSelectedLayers={setSelectedTypes}
+                analysisLayers={analysisLayers}
+                setAnalysisLayers={setAnalysisLayers}
+                showAnalysisOptions={showAnalysisOptions}
+                bufferEnabled={bufferEnabled}
+                handleBufferEnabled={handleBufferEnabled}
+                gridSize={gridSize}
+                setGridSize={setGridSize}
+                analysisTargetLayer={analysisTargetLayer}
+                setAnalysisTargetLayer={setAnalysisTargetLayer}
+                weightsState={weightsState}
+                setWeightsState={setWeightsState}
+                onRunDemand={() => setAnalysisMode("demand")}
+                onRunSupply={() => setAnalysisMode("supply")}
+                setActiveSwitcher={setActiveSwitcher}
+                activeSwitcher={activeSwitcher}
+              />
+            </div>
+          </Suspense>
+        )}
 
         {/* MAP (NO SCROLL) */}
         <Suspense fallback={<div>Loading...</div>}>
           <div className="flex-1 h-full overflow-hidden">
-            <OpenLayerMap
-              buffer={buffer}
-              analysisBuffer={bufferValue.analysis}
-              bottleneckZone={bottleNeckZone}
-              mlBuffer={bufferValue.ml}
-              selectedTypes={selectedTypes}
-              updateAnalysis={updateAnalysis}
-              setAnalysisData={setAnalysisData}
-              setSelectedFeature={setSelectedFeature}
-              analysisLayers={analysisLayers}
-              setBufferResults={setBufferResults}
-              bufferEnabledRef={bufferEnabledRef}
-              gridSize={gridSize}
-              analysisTargetLayer={analysisTargetLayer}
-              weightsState={weightsState}
-              analysisMode={analysisMode}
-              setAnalysisMode={setAnalysisMode}
-            />
+            {activeSwitcher === "layer" ? (
+              <OpenLayerMap
+                buffer={buffer}
+                analysisBuffer={bufferValue.analysis}
+                bottleneckZone={bottleNeckZone}
+                mlBuffer={bufferValue.ml}
+                selectedTypes={selectedTypes}
+                updateAnalysis={updateAnalysis}
+                setAnalysisData={setAnalysisData}
+                setSelectedFeature={setSelectedFeature}
+                analysisLayers={analysisLayers}
+                setBufferResults={setBufferResults}
+                bufferEnabledRef={bufferEnabledRef}
+                gridSize={gridSize}
+                analysisTargetLayer={analysisTargetLayer}
+                weightsState={weightsState}
+                analysisMode={analysisMode}
+                setAnalysisMode={setAnalysisMode}
+              />
+            ) : (
+              <Dashboard setActiveSwitcher={setActiveSwitcher} />
+            )}
           </div>
         </Suspense>
 
         {/* RIGHT PANEL */}
         <Suspense fallback={<div>Loading...</div>}>
-          <div className="w-[280px] h-full overflow-y-auto bg-[#0f2a44]">
-            <AnalysisPanel
-              buffer={buffer}
-              selectedTypes={selectedTypes}
-              analysisData={analysisData}
-              selectedFeature={selectedFeature}
-              setAnalysisLayers={setAnalysisLayers}
-              analysisLayers={analysisLayers}
-              bufferResults={bufferResults}
-              setShowAnalysisOptions={setShowAnalysisOptions}
-              showLandSuitableDropdown={showLandSuitableDropdown}
-              setShowLandSuitableDropdown={setShowLandSuitableDropdown}
-              proximity={proximity}
-              setProximity={setProximity}
-              toiletSheet={toiletSheet}
-              setToiletSheet={setToiletSheet}
-              handleToiletAnalysis={handleToiletAnalysis}
-              isAnalysisOn={bufferValue.analysis.enabled}
-            />
-          </div>
+          {activeSwitcher === "layer" && (
+            <div className="w-[280px] h-full overflow-y-auto bg-[#0f2a44]">
+              <AnalysisPanel
+                buffer={buffer}
+                selectedTypes={selectedTypes}
+                analysisData={analysisData}
+                selectedFeature={setSelectedFeature}
+                setAnalysisLayers={setAnalysisLayers}
+                analysisLayers={analysisLayers}
+                bufferResults={bufferResults}
+                setShowAnalysisOptions={setShowAnalysisOptions}
+                showLandSuitableDropdown={showLandSuitableDropdown}
+                setShowLandSuitableDropdown={setShowLandSuitableDropdown}
+                proximity={proximity}
+                setProximity={setProximity}
+                toiletSheet={toiletSheet}
+                setToiletSheet={setToiletSheet}
+                handleToiletAnalysis={handleToiletAnalysis}
+                isAnalysisOn={bufferValue.analysis.enabled}
+              />
+            </div>
+          )}
         </Suspense>
       </div>
     </div>

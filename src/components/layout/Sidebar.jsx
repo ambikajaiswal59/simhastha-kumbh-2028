@@ -22,7 +22,7 @@ export default function Sidebar({
   weightsState,
   setWeightsState,
   onRunDemand,
-  onRunSupply,
+  onRunSupply,activeSwitcher,setActiveSwitcher
 }) {
   const [layers, setLayers] = useState([]);
   const [selected, setSelected] = useState([{ table_name: "road_network3" }]);
@@ -35,7 +35,7 @@ export default function Sidebar({
   });
 
   const [activeBufferType, setActiveBufferType] = useState("");
-  const [activeSwitcher, setActiveSwitcher] = useState("layer");
+
   const allowedLayers = [
     "road_network3",
     "toilets_sanitation",
@@ -195,7 +195,7 @@ export default function Sidebar({
   }
 
   return (
-    <div className="flex-col text-white bg-gradient-to-b from-[#0f2a44] to-[#133b5c] shadow-2xl border-r border-cyan-500/25">
+    <div className="flex flex-col text-white bg-gradient-to-b from-[#0f2a44] to-[#133b5c] shadow-2xl border-r border-cyan-500/25">
       {/* SWITCHER BUTTONS */}
       <div className="flex gap-2 px-2 pt-2 pb-2 bg-gradient-to-r from-[#122b45]/90 via-[#173c60]/90 to-[#112233]/60 shadow rounded-b-xl">
         <button
@@ -749,11 +749,7 @@ export default function Sidebar({
         </div>
       )}
 
-      {activeSwitcher ==="routing" &&(
-        <div>
-          <Dashboard />
-          </div>
-      )}
+
     </div>
   );
 }
