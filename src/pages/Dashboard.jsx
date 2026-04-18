@@ -34,7 +34,6 @@ function isNearRoute(pointCoord, routeCoords, threshold = 10) {
   return minDistance < threshold;
 }
 
-
 function Dashboard({ setActiveSwitcher }) {
   const [mapMessage, setMapMessage] = useState("");
   const [roads, setRoads] = useState(null);
@@ -47,6 +46,8 @@ function Dashboard({ setActiveSwitcher }) {
   const [route, setRoute] = useState(null);
   const [blockedPoints, setBlockedPoints] = useState([]);
   const [blockedMarkers, setBlockedMarkers] = useState([]);
+  const [startPoint, setStartPoint] = useState(null);
+  const [endPoint, setEndPoint] = useState(null);
 
   const [mode, setMode] = useState("waypoint");
   const [loading, setLoading] = useState(false);
@@ -69,9 +70,15 @@ function Dashboard({ setActiveSwitcher }) {
   const animationRef = useRef(null);
   const [totalDistance, setTotalDistance] = useState(0);
 
-  useEffect(() => { modeRef.current = mode; }, [mode]);
-  useEffect(() => { blockedPointsRef.current = blockedPoints; }, [blockedPoints]);
-  useEffect(() => { waypointsRef.current = waypoints; }, [waypoints]);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+  useEffect(() => {
+    blockedPointsRef.current = blockedPoints;
+  }, [blockedPoints]);
+  useEffect(() => {
+    waypointsRef.current = waypoints;
+  }, [waypoints]);
 
   const removeLayer = (layerRef) => {
     if (layerRef.current && mapInstanceRef.current) {
@@ -133,13 +140,15 @@ function Dashboard({ setActiveSwitcher }) {
         const feature = new Feature({
           geometry: new Point(fromLonLat([lng, lat])),
         });
-        feature.setStyle(new Style({
-          image: new Circle({
-            radius: 8,
-            fill: new Fill({ color: "#2C2C2C" }),
-            stroke: new Stroke({ color: "white", width: 2 }),
+        feature.setStyle(
+          new Style({
+            image: new Circle({
+              radius: 8,
+              fill: new Fill({ color: "#2C2C2C" }),
+              stroke: new Stroke({ color: "white", width: 2 }),
+            }),
           }),
-        }));
+        );
         setBlockedMarkers((prev) => [...prev, feature]);
         setMapMessage(`Blocked point added`);
         setTimeout(() => setMapMessage(""), 2000);
@@ -195,19 +204,21 @@ function Dashboard({ setActiveSwitcher }) {
         if (idx === 0) color = "#22c55e"; // First = green
         if (idx === waypoints.length - 1) color = "#ef4444"; // Last = red
 
-        feature.setStyle(new Style({
-          image: new Circle({
-            radius: 10,
-            fill: new Fill({ color }),
-            stroke: new Stroke({ color: "white", width: 2 }),
+        feature.setStyle(
+          new Style({
+            image: new Circle({
+              radius: 10,
+              fill: new Fill({ color }),
+              stroke: new Stroke({ color: "white", width: 2 }),
+            }),
+            text: new Text({
+              text: String(idx + 1),
+              fill: new Fill({ color: "black" }), // Color of Numbers over map
+              font: "bold 12px Arial",
+              offsetY: -12,
+            }),
           }),
-          text: new Text({
-            text: String(idx + 1),
-            fill: new Fill({ color: "black" }),  // Color of Numbers over map 
-            font: "bold 12px Arial",
-            offsetY: -12,
-          }),
-        }));
+        );
 
         return feature;
       });
@@ -280,10 +291,13 @@ function Dashboard({ setActiveSwitcher }) {
     if (!map) return;
     removeLayer(aoiLayerRef);
     if (aoi) {
-      const layer = makeGeoJSONLayer(aoi, new Style({
-        stroke: new Stroke({ color: "black", width: 2 }),
-        fill: new Fill({ color: "rgba(0,0,0,0.05)" }),
-      }));
+      const layer = makeGeoJSONLayer(
+        aoi,
+        new Style({
+          stroke: new Stroke({ color: "black", width: 2 }),
+          fill: new Fill({ color: "rgba(0,0,0,0.05)" }),
+        }),
+      );
       map.addLayer(layer);
       aoiLayerRef.current = layer;
       const extent = layer.getSource().getExtent();
@@ -297,9 +311,12 @@ function Dashboard({ setActiveSwitcher }) {
     if (!map) return;
     removeLayer(roadsLayerRef);
     if (roads) {
-      const layer = makeGeoJSONLayer(roads, new Style({
-        stroke: new Stroke({ color: "#e74c3c", width: 2 }),
-      }));
+      const layer = makeGeoJSONLayer(
+        roads,
+        new Style({
+          stroke: new Stroke({ color: "#e74c3c", width: 2 }),
+        }),
+      );
       map.addLayer(layer);
       roadsLayerRef.current = layer;
     }
@@ -311,9 +328,12 @@ function Dashboard({ setActiveSwitcher }) {
     if (!map) return;
     removeLayer(ghatsLayerRef);
     if (ghats) {
-      const layer = makeGeoJSONLayer(ghats, new Style({
-        stroke: new Stroke({ color: "#27ae60", width: 3 }),
-      }));
+      const layer = makeGeoJSONLayer(
+        ghats,
+        new Style({
+          stroke: new Stroke({ color: "#27ae60", width: 3 }),
+        }),
+      );
       map.addLayer(layer);
       ghatsLayerRef.current = layer;
     }
@@ -325,14 +345,16 @@ function Dashboard({ setActiveSwitcher }) {
     if (!map) return;
     removeLayer(riverLayerRef);
     if (river) {
-      const layer = makeGeoJSONLayer(river, new Style({
-        stroke: new Stroke({ color: "#2980b9", width: 3 }),
-      }));
+      const layer = makeGeoJSONLayer(
+        river,
+        new Style({
+          stroke: new Stroke({ color: "#2980b9", width: 3 }),
+        }),
+      );
       map.addLayer(layer);
       riverLayerRef.current = layer;
     }
   }, [river]);
-
 
   // ── 11. Route layer with magenta fill ────────────────────────────────────
   useEffect(() => {
@@ -349,21 +371,23 @@ function Dashboard({ setActiveSwitcher }) {
         if (!segment.coordinates || segment.coordinates.length === 0) return;
 
         const coords = segment.coordinates.map((coord) =>
-          fromLonLat(Array.isArray(coord) ? coord : [coord.lng, coord.lat])
+          fromLonLat(Array.isArray(coord) ? coord : [coord.lng, coord.lat]),
         );
 
         const feature = new Feature({
           geometry: new LineString(coords),
         });
 
-        feature.setStyle(new Style({
-          stroke: new Stroke({
-            color: "#900bf5",
-            width: 6,
-            lineCap: "round",
-            lineJoin: "round",
+        feature.setStyle(
+          new Style({
+            stroke: new Stroke({
+              color: "#900bf5",
+              width: 6,
+              lineCap: "round",
+              lineJoin: "round",
+            }),
           }),
-        }));
+        );
 
         features.push(feature);
 
@@ -373,23 +397,29 @@ function Dashboard({ setActiveSwitcher }) {
     }
 
     // Also check if route has direct coordinates
-    if (route.route && route.route.coordinates && route.route.coordinates.length > 0) {
+    if (
+      route.route &&
+      route.route.coordinates &&
+      route.route.coordinates.length > 0
+    ) {
       const coords = route.route.coordinates.map((coord) =>
-        fromLonLat(Array.isArray(coord) ? coord : [coord.lng, coord.lat])
+        fromLonLat(Array.isArray(coord) ? coord : [coord.lng, coord.lat]),
       );
 
       const feature = new Feature({
         geometry: new LineString(coords),
       });
 
-      feature.setStyle(new Style({
-        stroke: new Stroke({
-          color: "#900bf5",
-          width: 6,
-          lineCap: "round",
-          lineJoin: "round",
+      feature.setStyle(
+        new Style({
+          stroke: new Stroke({
+            color: "#900bf5",
+            width: 6,
+            lineCap: "round",
+            lineJoin: "round",
+          }),
         }),
-      }));
+      );
 
       features.push(feature);
 
@@ -406,7 +436,6 @@ function Dashboard({ setActiveSwitcher }) {
       routeLayerRef.current = layer;
     }
   }, [route]);
-
 
   const addArrowsToSegment = (coords, features) => {
     if (!coords || coords.length < 2) return;
@@ -475,8 +504,7 @@ function Dashboard({ setActiveSwitcher }) {
     </svg>
   `;
 
-    const arrowIconUrl =
-      "data:image/svg+xml;base64," + btoa(arrowSvg);
+    const arrowIconUrl = "data:image/svg+xml;base64," + btoa(arrowSvg);
 
     arrowFeature.setStyle(
       new Style({
@@ -488,13 +516,11 @@ function Dashboard({ setActiveSwitcher }) {
           anchor: [0.5, 0.5],
         }),
         zIndex: 90,
-      })
+      }),
     );
 
     features.push(arrowFeature);
   };
-
-
 
   const stopWalkingAnimation = () => {
     if (animationRef.current) {
@@ -587,7 +613,7 @@ function Dashboard({ setActiveSwitcher }) {
 
     const persons = Array.from({ length: NUM_PERSONS }, (_, i) => {
       const feature = new Feature({
-        geometry: new Point(routeCoords[0])
+        geometry: new Point(routeCoords[0]),
       });
 
       feature.setStyle(
@@ -597,18 +623,18 @@ function Dashboard({ setActiveSwitcher }) {
             scale: 1,
             anchor: [0.5, 1],
           }),
-        })
+        }),
       );
 
       return {
         feature,
-        progress: -i * OFFSET_GAP // ✅ start before route (fix)
+        progress: -i * OFFSET_GAP, // ✅ start before route (fix)
       };
     });
 
     const layer = new VectorLayer({
       source: new VectorSource({
-        features: persons.map((p) => p.feature)
+        features: persons.map((p) => p.feature),
       }),
       zIndex: 200,
     });
@@ -618,7 +644,6 @@ function Dashboard({ setActiveSwitcher }) {
 
     const animate = () => {
       persons.forEach((person) => {
-
         person.progress += speed;
 
         // 🔹 Not yet entered route
@@ -660,71 +685,99 @@ function Dashboard({ setActiveSwitcher }) {
     animationRef.current = requestAnimationFrame(animate);
   };
 
-
-
   const fetchRoute = async () => {
     if (waypoints.length < 2) {
       setMapMessage("Add at least 2 waypoints");
       setTimeout(() => setMapMessage(""), 3000);
       return;
     }
-
+  
     setLoading(true);
     stopWalkingAnimation();
-
+  
     try {
       const res = await fetch(API.shortestPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           waypoints: waypoints,
-          blocked_points: blockedPoints,
+          blocked_points: blockedPoints, // ✅ keep this BEFORE clearing
         }),
       });
-
+  
       const data = await res.json();
-
-      if (!data || !data.segments || data.segments.length === 0 || data.status !== "success") {
+  
+      if (
+        !data ||
+        !data.segments ||
+        data.segments.length === 0 ||
+        data.status !== "success"
+      ) {
         setRoute(null);
         setMapMessage("No path found");
         setTimeout(() => setMapMessage(""), 3000);
         setLoading(false);
         return;
       }
-
+  
       console.log("ROUTE API RESPONSE:", data);
       setMapMessage("Route found!");
       setTimeout(() => setMapMessage(""), 2000);
       setRoute(data);
-
+  
+      // ✅ DRAW ROUTE
       if (data.route && data.route.coordinates) {
         const routeCoords = data.route.coordinates.map((coord) =>
           fromLonLat(Array.isArray(coord) ? coord : [coord.lng, coord.lat])
         );
-
+  
         const distance = calculateTotalDistance(routeCoords);
         setTotalDistance((distance / 1000).toFixed(2));
-
+  
         stopWalkingAnimation();
         startWalkingAnimation(routeCoords);
       }
-
-      if (intersectionsLayerRef.current && data.route && data.route.coordinates) {
+  
+      // ✅ UPDATE INTERSECTIONS STYLE
+      if (
+        intersectionsLayerRef.current &&
+        data.route &&
+        data.route.coordinates
+      ) {
         const routeCoords = data.route.coordinates.map((coord) =>
           fromLonLat(Array.isArray(coord) ? coord : [coord.lng, coord.lat])
         );
-        intersectionsLayerRef.current.getSource().getFeatures().forEach((feature) => {
-          const coord = feature.getGeometry().getCoordinates();
-          const onRoute = isNearRoute(coord, routeCoords);
-          feature.setStyle(new Style({
-            image: new Circle({
-              radius: onRoute ? 7 : 4,
-              fill: new Fill({ color: onRoute ? "#FFD700" : "#555555" }),
-              stroke: new Stroke({ color: onRoute ? "#fff" : "#333", width: 1 }),
-            }),
-          }));
-        });
+  
+        intersectionsLayerRef.current
+          .getSource()
+          .getFeatures()
+          .forEach((feature) => {
+            const coord = feature.getGeometry().getCoordinates();
+            const onRoute = isNearRoute(coord, routeCoords);
+  
+            feature.setStyle(
+              new Style({
+                image: new Circle({
+                  radius: onRoute ? 7 : 4,
+                  fill: new Fill({ color: onRoute ? "#FFD700" : "#555555" }),
+                  stroke: new Stroke({
+                    color: onRoute ? "#fff" : "#333",
+                    width: 1,
+                  }),
+                }),
+              })
+            );
+          });
       }
+  
+      if (blockedMarkersLayerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(blockedMarkersLayerRef.current);
+        blockedMarkersLayerRef.current = null;
+      }
+  
+      setBlockedMarkers([]);
+      setBlockedPoints([]);
+  
     } catch (error) {
       console.error("Route fetch error:", error);
       setMapMessage("Error fetching route");
@@ -736,21 +789,35 @@ function Dashboard({ setActiveSwitcher }) {
 
   // ── TOGGLES ──────────────────────────────────────────────────────────────────
   const toggleRoads = () => {
-    if (roads) { setRoads(null); }
-    else { fetch(API.roads).then((r) => r.json()).then(setRoads); }
+    if (roads) {
+      setRoads(null);
+    } else {
+      fetch(API.roads)
+        .then((r) => r.json())
+        .then(setRoads);
+    }
   };
   const toggleGhats = () => {
-    if (ghats) { setGhats(null); }
-    else { fetch(API.ghats).then((r) => r.json()).then(setGhats); }
+    if (ghats) {
+      setGhats(null);
+    } else {
+      fetch(API.ghats)
+        .then((r) => r.json())
+        .then(setGhats);
+    }
   };
   const toggleRiver = () => {
-    if (river) { setRiver(null); }
-    else { fetch(API.river).then((r) => r.json()).then(setRiver); }
+    if (river) {
+      setRiver(null);
+    } else {
+      fetch(API.river)
+        .then((r) => r.json())
+        .then(setRiver);
+    }
   };
 
   // ── RESET ────────────────────────────────────────────────────────────────────
   const resetAll = () => {
-
     stopWalkingAnimation();
 
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
@@ -763,15 +830,20 @@ function Dashboard({ setActiveSwitcher }) {
     setTimeout(() => setMapMessage(""), 2000);
 
     if (intersectionsLayerRef.current) {
-      intersectionsLayerRef.current.getSource().getFeatures().forEach((feature) => {
-        feature.setStyle(new Style({
-          image: new Circle({
-            radius: 5,
-            fill: new Fill({ color: "#00FF88" }),
-            stroke: new Stroke({ color: "#fff", width: 1 }),
-          }),
-        }));
-      });
+      intersectionsLayerRef.current
+        .getSource()
+        .getFeatures()
+        .forEach((feature) => {
+          feature.setStyle(
+            new Style({
+              image: new Circle({
+                radius: 5,
+                fill: new Fill({ color: "#00FF88" }),
+                stroke: new Stroke({ color: "#fff", width: 1 }),
+              }),
+            }),
+          );
+        });
     }
   };
 
@@ -784,14 +856,13 @@ function Dashboard({ setActiveSwitcher }) {
   // ── RENDER ───────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-screen font-sans">
-
       {/* Sidebar */}
       <div className="w-72  overflow-y-auto shadow-[4px_0_16px_rgba(0,0,0,0.5)] bg-gradient-to-b from-[#0f2a44] to-[#0a1e33] text-white">
         {/* Panel Header */}
-          <Switcher 
-            activeSwitcher="routing" 
-            setActiveSwitcher={setActiveSwitcher} 
-          />
+        <Switcher
+          activeSwitcher="routing"
+          setActiveSwitcher={setActiveSwitcher}
+        />
         <div className="bg-gradient-to-br from-[#0a1e33] to-[#1e3a52] p-5 text-center border-b-2 border-blue-500 flex-shrink-0">
           <div className="text-lg font-bold tracking-wide mb-2">
             Routing Panel
@@ -800,7 +871,7 @@ function Dashboard({ setActiveSwitcher }) {
             className={`inline-block text-white px-3 py-1.5 rounded-full text-xs font-bold tracking-wide`}
             style={{
               background: modeBadgeColor[mode],
-              boxShadow: `0 0 15px ${modeBadgeColor[mode]}44`
+              boxShadow: `0 0 15px ${modeBadgeColor[mode]}44`,
             }}
           >
             MODE: {mode.toUpperCase()}
@@ -836,19 +907,21 @@ function Dashboard({ setActiveSwitcher }) {
 
           <div className="grid grid-cols-2 gap-2.5 mb-2.5">
             <button
-              className={`py-2.5 px-2.5 rounded-xl font-semibold text-white text-sm border-2 transition-all duration-300 shadow ${mode === "waypoint"
-                ? "bg-amber-500 border-amber-500 font-bold shadow-[0_0_12px_#f59e0b99] -translate-y-0.5"
-                : "bg-[#1e3a52] border-transparent"
-                }`}
+              className={`py-2.5 px-2.5 rounded-xl font-semibold text-white text-sm border-2 transition-all duration-300 shadow ${
+                mode === "waypoint"
+                  ? "bg-amber-500 border-amber-500 font-bold shadow-[0_0_12px_#f59e0b99] -translate-y-0.5"
+                  : "bg-[#1e3a52] border-transparent"
+              }`}
               onClick={() => setMode("waypoint")}
             >
               Waypoint
             </button>
             <button
-              className={`py-2.5 px-2.5 rounded-xl font-semibold text-white text-sm border-2 transition-all duration-300 shadow ${mode === "block"
-                ? "bg-red-500 border-red-500 font-bold shadow-[0_0_12px_#ef444499] -translate-y-0.5"
-                : "bg-[#1e3a52] border-transparent"
-                }`}
+              className={`py-2.5 px-2.5 rounded-xl font-semibold text-white text-sm border-2 transition-all duration-300 shadow ${
+                mode === "block"
+                  ? "bg-red-500 border-red-500 font-bold shadow-[0_0_12px_#ef444499] -translate-y-0.5"
+                  : "bg-[#1e3a52] border-transparent"
+              }`}
               onClick={() => setMode("block")}
             >
               Block Road
@@ -918,9 +991,11 @@ function Dashboard({ setActiveSwitcher }) {
               onClick={toggleRoads}
             >
               <span> Roads</span>
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
+              <span
+                className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
                 ${!!roads ? "bg-green-500" : "bg-slate-600"}
-              `}>
+              `}
+              >
                 {roads ? "ON" : "OFF"}
               </span>
             </button>
@@ -933,9 +1008,11 @@ function Dashboard({ setActiveSwitcher }) {
               onClick={toggleGhats}
             >
               <span> Ghats</span>
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
+              <span
+                className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
                 ${!!ghats ? "bg-green-500" : "bg-slate-600"}
-              `}>
+              `}
+              >
                 {ghats ? "ON" : "OFF"}
               </span>
             </button>
@@ -948,9 +1025,11 @@ function Dashboard({ setActiveSwitcher }) {
               onClick={toggleRiver}
             >
               <span> River</span>
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
+              <span
+                className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 
                 ${!!river ? "bg-green-500" : "bg-slate-600"}
-              `}>
+              `}
+              >
                 {river ? "ON" : "OFF"}
               </span>
             </button>

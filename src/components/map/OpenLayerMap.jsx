@@ -39,7 +39,6 @@ import { Paper, Typography, Stack, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 
-
 import LocationIcon from "../../assets/location.svg";
 import Om from "../../assets/Icon/temple.svg";
 import ToiletSantation from "../../assets/Icon/toilets.svg";
@@ -111,12 +110,14 @@ export default function OpenLayerMap({
   const bufferGeometryRef = useRef(null);
   const openAreaDelayRef = useRef(null);
   const coreAnalysisDrawTimerRef = useRef(null); /// concentric draw based on core button
+  const swipeValueRef = useRef(50);
 
   //////************************************* */
   const lastClickedCoordinateRef = useRef(null);
   const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [showSwipeControl, setShowSwipeControl] = useState(true);
+  const [swipeValue, setSwipeValue] = useState(50);
 
   // --------------------------------------------
   // ICON STYLE
@@ -249,6 +250,13 @@ export default function OpenLayerMap({
     supplyLayerRef.current.getSource().addFeatures(features);
 
     setLoadingLayer(false);
+  };
+  const updateMapSwipe = (value) => {
+    swipeValueRef.current = value;
+
+    if (mapObj.current) {
+      mapObj.current.render(); // 🔥 force re-render
+    }
   };
 
   const fetchOpenAreaLayer = async () => {
@@ -394,7 +402,6 @@ export default function OpenLayerMap({
         },
       },
     });
-
 
     mapObj.current.addOverlay(overlayRef.current);
 
@@ -555,6 +562,29 @@ export default function OpenLayerMap({
     mapObj.current.addLayer(bufferLayerRef.current);
     mapObj.current.addLayer(demandLayerRef.current);
     mapObj.current.addLayer(supplyLayerRef.current);
+    supplyLayerRef.current.on("prerender", function (event) {
+      const ctx = event.context;
+      const map = mapObj.current;
+
+      if (!map) return;
+
+      const width = map.getSize()[0];
+      const height = map.getSize()[1];
+
+      const swipe = swipeValueRef.current / 100;
+
+      ctx.save();
+      ctx.beginPath();
+
+      // Clip RIGHT side (Supply visible side)
+      ctx.rect(width * swipe, 0, width * (1 - swipe), height);
+
+      ctx.clip();
+    });
+
+    supplyLayerRef.current.on("postrender", function (event) {
+      event.context.restore();
+    });
     mapObj.current.addLayer(aoiLayerRef.current);
     mapObj.current.addLayer(gapLayerRef.current);
     mapObj.current.addLayer(suitableLandRef.current);
@@ -614,35 +644,32 @@ export default function OpenLayerMap({
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
 
   useEffect(() => {
-    debugger
     if (!analysisMode) return;
-  
+
     const weights = {};
-  
+
     analysisTargetLayer.forEach((layer) => {
       weights[layer] = weightsState[layer] ?? 0;
     });
-  
+
     const run = async () => {
-      debugger
       if (analysisMode === "demand") {
         await loadDemandData(gridSize, weights);
       }
-  
+
       if (analysisMode === "supply") {
         await loadSupplyData(gridSize);
       }
-  
+
       setAnalysisMode(null);
     };
-  
+
     run();
   }, [analysisMode]);
 
   // Kept function here for future use—once the backend is fixed, you can use it directly.
   const fetchDemandAnalysisLayer = async ({ gridSize, weights }) => {
     try {
-      debugger;
       const res = await fetch("http://192.168.1.27:8000/run-analysis", {
         method: "POST",
         headers: {
@@ -689,8 +716,8 @@ export default function OpenLayerMap({
     const format = new GeoJSON();
 
     const features = format.readFeatures(apiResponse, {
-      dataProjection: "EPSG:32643", // ✅ from API
-      featureProjection: "EPSG:3857", // ✅ map projection
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
     });
 
     source.addFeatures(features);
@@ -698,55 +725,53 @@ export default function OpenLayerMap({
     demandAnalysisRef.current.setVisible(true);
   };
 
+  const fetchSupplyAnalysisLayer = async ({ gridSize }) => {
+    try {
+      const res = await fetch("http://192.168.1.27:8000/run-supply-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ gridSize }),
+      });
 
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Error fetching supply analysis layer:", err);
+      return null;
+    }
+  };
+  const loadSupplyData = async (gridSize) => {
+    setLoadingLayer(true);
+    try {
+      const data = await fetchSupplyAnalysisLayer({ gridSize });
 
-const fetchSupplyAnalysisLayer = async ({ gridSize }) => {
-  try {
-    const res = await fetch("http://192.168.1.27:8000/run-supply-analysis", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ gridSize }),
+      if (data) {
+        drawSupplyFeatures(data);
+      }
+    } catch (err) {
+      console.error("Supply API error:", err);
+    } finally {
+      setLoadingLayer(false);
+    }
+  };
+  const drawSupplyFeatures = (apiResponse) => {
+    if (!apiResponse?.features) return;
+
+    const source = supplyAnalysisRef.current.getSource();
+    source.clear();
+
+    const format = new GeoJSON();
+
+    const features = format.readFeatures(apiResponse, {
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
     });
 
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error("Error fetching supply analysis layer:", err);
-    return null;
-  }
-};
-const loadSupplyData = async (gridSize) => {
-  setLoadingLayer(true);
-  try {
-    const data = await fetchSupplyAnalysisLayer({ gridSize });
-
-    if (data) {
-      drawSupplyFeatures(data);
-    }
-  } catch (err) {
-    console.error("Supply API error:", err);
-  } finally {
-    setLoadingLayer(false);
-  }
-};
-const drawSupplyFeatures = (apiResponse) => {
-  if (!apiResponse?.features) return;
-
-  const source = supplyAnalysisRef.current.getSource();
-  source.clear();
-
-  const format = new GeoJSON();
-
-  const features = format.readFeatures(apiResponse, {
-    dataProjection: "EPSG:32643",
-    featureProjection: "EPSG:3857",
-  });
-
-  source.addFeatures(features);
-  supplyAnalysisRef.current.setVisible(true);
-};
+    source.addFeatures(features);
+    supplyAnalysisRef.current.setVisible(true);
+  };
   const fetchEmptySpaces = async () => {
     try {
       const res = await fetch(API.emptySpaces(mlBuffer.value));
@@ -1356,11 +1381,10 @@ const drawSupplyFeatures = (apiResponse) => {
             style: createLayerStyle(type),
           });
           if (type === "road_network3") {
-  layerObj.setZIndex(1);
-} else {
-  layerObj.setZIndex(2);
-}
-          
+            layerObj.setZIndex(1);
+          } else {
+            layerObj.setZIndex(2);
+          }
 
           mapObj.current.addLayer(layerObj);
           layerRef.current[type] = layerObj;
@@ -1542,9 +1566,9 @@ const drawSupplyFeatures = (apiResponse) => {
       },
       body: JSON.stringify({
         tableName: type,
-        latitude: (lat),
-        longitude: (lon),
-        bufferRadius: (bufferRef.current * 1000),
+        latitude: lat,
+        longitude: lon,
+        bufferRadius: bufferRef.current * 1000,
       }),
     })
       .then((res) => res.json())
@@ -1875,13 +1899,16 @@ const drawSupplyFeatures = (apiResponse) => {
 
             {/* Slider */}
             <input
-              id="swipe"
               type="range"
               min="0"
               max="100"
-              defaultValue="50"
+              value={swipeValue}
               className="w-full accent-orange-500 cursor-pointer"
-              onInput={() => mapObj.current?.render()}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setSwipeValue(val);
+                updateMapSwipe(val); // 🔥 IMPORTANT
+              }}
             />
           </div>
         ) : (

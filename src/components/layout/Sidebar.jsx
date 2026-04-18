@@ -22,7 +22,9 @@ export default function Sidebar({
   weightsState,
   setWeightsState,
   onRunDemand,
-  onRunSupply,activeSwitcher,setActiveSwitcher
+  onRunSupply,
+  activeSwitcher,
+  setActiveSwitcher,
 }) {
   const [layers, setLayers] = useState([]);
   const [selected, setSelected] = useState([{ table_name: "road_network3" }]);
@@ -137,7 +139,6 @@ export default function Sidebar({
 
         window.dispatchEvent(new Event("clear-site-priority"));
       }
-
     } else {
       updated = [...selected, layer];
     }
@@ -748,8 +749,6 @@ export default function Sidebar({
           </div>
         </div>
       )}
-
-
     </div>
   );
 }
