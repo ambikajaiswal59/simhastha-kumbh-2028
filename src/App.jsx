@@ -1,10 +1,10 @@
 import React from "react";
-import Dashboard from "./pages/Dashboard";
+import MainLayout from "./components/layout/MainLayout";
 
 function App() {
   return (
     <React.Fragment>
-      <Dashboard />
+      <MainLayout />
     </React.Fragment>
   );
 }

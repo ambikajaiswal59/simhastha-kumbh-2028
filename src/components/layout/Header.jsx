@@ -28,15 +28,15 @@ export default function Header() {
           </span>
         </div>
 
-        <div className="h-8 w-px bg-gray-500/40"></div>
+        {/* <div className="h-8 w-px bg-gray-500/40"></div> */}
 
-        <div className="flex items-center gap-2 cursor-pointer hover:bg-white/10 px-3 py-2 rounded-lg transition">
+        {/* <div className="flex items-center gap-2 cursor-pointer hover:bg-white/10 px-3 py-2 rounded-lg transition">
           <span className="text-base">Admin</span>
 
           <div className="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-semibold shadow-md">
             A
           </div>
-        </div>
+        </div> */}
       </div>
     </header>
   );

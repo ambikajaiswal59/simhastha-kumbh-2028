@@ -177,7 +177,6 @@ const SuitableLandForm = ({
             </MenuItem>
           ))}
         </Select>
-        
       </FormControl>
       {/* <FormControl fullWidth size="small">
         <Button
@@ -195,6 +194,7 @@ const SuitableLandForm = ({
             variant="contained"
             color="warning"
             fullWidth
+            sx={{ textTransform: "none" }}
           >
             Analyse
           </Button>
@@ -205,7 +205,12 @@ const SuitableLandForm = ({
                 window.dispatchEvent(new Event("toggle-site-priority-pause"))
               }
               variant="outlined"
-              sx={{ flex: 1, color: "white", borderColor: "white" }}
+              sx={{
+                textTransform: "none",
+                flex: 1,
+                color: "white",
+                borderColor: "white",
+              }}
             >
               Pause
             </Button>
@@ -216,7 +221,7 @@ const SuitableLandForm = ({
               }
               variant="outlined"
               color="error"
-              sx={{ flex: 1 }}
+              sx={{ textTransform: "none", flex: 1 }}
             >
               Clear
             </Button>

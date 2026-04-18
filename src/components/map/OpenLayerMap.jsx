@@ -37,6 +37,7 @@ import MapLegend from "../Maplegend";
 
 import { Paper, Typography, Stack, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 
 import LocationIcon from "../../assets/location.svg";
 import Om from "../../assets/Icon/temple.svg";
@@ -44,6 +45,7 @@ import ToiletSantation from "../../assets/Icon/toilets.svg";
 import PoliceStation from "../../assets/Icon/police.svg";
 import Parking from "../../assets/Icon/parking.svg";
 import Junction from "../../assets/Icon/junction.svg";
+import { CleaningServices } from "@mui/icons-material";
 
 export default function OpenLayerMap({
   buffer,
@@ -56,6 +58,11 @@ export default function OpenLayerMap({
   setBufferResults,
   bufferEnabledRef,
   bottleneckZone,
+  gridSize,
+  analysisTargetLayer,
+  weightsState,
+  analysisMode,
+  setAnalysisMode,
 }) {
   const {
     mapRef,
@@ -72,6 +79,18 @@ export default function OpenLayerMap({
   const vectorLayerRef = useRef(null);
   const layerRef = useRef({});
   const demandLayerRef = useRef(null);
+  const demandAnalysisRef = useRef(
+    new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+    }),
+  );
+  const supplyAnalysisRef = useRef(
+    new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+    }),
+  );
   const supplyLayerRef = useRef(null);
   const aoiLayerRef = useRef(null);
   const [loadingLayer, setLoadingLayer] = useState(false);
@@ -91,11 +110,15 @@ export default function OpenLayerMap({
   const bufferGeometryRef = useRef(null);
   const openAreaDelayRef = useRef(null);
   const coreAnalysisDrawTimerRef = useRef(null); /// concentric draw based on core button
+  const swipeValueRef = useRef(50);
 
   //////************************************* */
   const lastClickedCoordinateRef = useRef(null);
   const coreAnalysisActiveRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  const [showSwipeControl, setShowSwipeControl] = useState(true);
+  const [swipeValue, setSwipeValue] = useState(50);
+
   // --------------------------------------------
   // ICON STYLE
   // -----------------------------
@@ -177,16 +200,16 @@ export default function OpenLayerMap({
     });
   };
   //-------------------------------open area-layer style ----------------
-const openAreaLayerStyle = new Style({
-  fill: new Fill({
-    color: "rgba(60, 160, 60, 0.25)",
-    // forest green with low opacity
-  }),
-  stroke: new Stroke({
-    color: "red",
-    width:1,
-  }), // no boundary
-});;
+  const openAreaLayerStyle = new Style({
+    fill: new Fill({
+      color: "rgba(60, 160, 60, 0.25)",
+      // forest green with low opacity
+    }),
+    stroke: new Stroke({
+      color: "red",
+      width: 1,
+    }), // no boundary
+  });
   // -----------------------------
   // FETCH DEMAND
   // -----------------------------
@@ -228,40 +251,13 @@ const openAreaLayerStyle = new Style({
 
     setLoadingLayer(false);
   };
-  // -------------open area-------------------
+  const updateMapSwipe = (value) => {
+    swipeValueRef.current = value;
 
-    // const fetchOpenAreaLayer = async () => {
-    //    if (!openAreaLayerRef.current) return;
-
-    //  clearTimeout(openAreaRef.current);
-    //  setLoadingLayer(true);
-    //  openAreaLayerRef.current.setVisible(false);
-
-    //   try {
-    //     if (openAreaLayerRef.current.getSource().getFeatures().length === 0) {
-    //       const res = await fetch(API.openArea);
-    //       const json = await res.json();
-
-    //       const features = new GeoJSON().readFeatures(json.data, {
-    //         dataProjection: "EPSG:4326",
-    //         featureProjection: "EPSG:3857",
-    //       });
-
-    //       openAreaLayerRef.current.getSource().addFeatures(features);
-           
-    //     } openAreaRef.current = setTimeout(() => {
-    //       openAreaLayerRef.current?.setVisible(true);
-    //       setLoadingLayer(false);
-    //     }, 20000)
-    //   }
-      
-    //     catch (err) {
-    //     console.error("Open area error:", err);
-    //   } finally {
-    //     setLoadingLayer(false);
-    //   }
-  // };
-  
+    if (mapObj.current) {
+      mapObj.current.render(); // 🔥 force re-render
+    }
+  };
 
   const fetchOpenAreaLayer = async () => {
     if (!openAreaLayerRef.current) return;
@@ -292,7 +288,6 @@ const openAreaLayerStyle = new Style({
       setLoadingLayer(false);
     }
   };
-
 
   // FETCH Gap
   // -----------------------------
@@ -370,8 +365,7 @@ const openAreaLayerStyle = new Style({
       visible: false,
     });
     //----------------
-    
-    
+
     mapObj.current = new Map({
       target: mapRef.current,
       layers: [
@@ -390,11 +384,23 @@ const openAreaLayerStyle = new Style({
       }),
     });
     //************************************************ */
+    // overlayRef.current = new Overlay({
+    //   element: popupRef.current,
+    //   positioning: "center-left", // 👈 anchor popup from left side
+    //   stopEvent: true,
+    //   offset: [0, 0], // 👉 push it to right
+    // });
     overlayRef.current = new Overlay({
       element: popupRef.current,
-      positioning: "center-left", // 👈 anchor popup from left side
+      positioning: "center-left",
       stopEvent: true,
-      offset: [0, 0], // 👉 push it to right
+      offset: [0, 0],
+      autoPan: {
+        margin: 20,
+        animation: {
+          duration: 250,
+        },
+      },
     });
 
     mapObj.current.addOverlay(overlayRef.current);
@@ -423,8 +429,6 @@ const openAreaLayerStyle = new Style({
       "Open Area Layer",
     );
     openAreaLayerRef.current.setZIndex(9997);
-
-
 
     scenerioSanitationRef.current = new VectorLayer({
       source: new VectorSource(),
@@ -518,18 +522,77 @@ const openAreaLayerStyle = new Style({
         }),
       ];
     });
+
+    if (demandAnalysisRef.current) {
+      demandAnalysisRef.current.setStyle((feature) => {
+        const demand = feature.get("Demand") || 0;
+
+        return new Style({
+          stroke: new Stroke({
+            color: "#333",
+            width: 0.5,
+          }),
+          fill: new Fill({
+            color: `rgba(255, 0, 0, ${Math.min(demand / 10, 0.8)})`,
+            // 🔥 higher demand = darker red
+          }),
+        });
+      });
+    }
+
+    if (supplyAnalysisRef.current) {
+      supplyAnalysisRef.current.setStyle((feature) => {
+        const supply = feature.get("supply") || 0;
+
+        return new Style({
+          stroke: new Stroke({
+            color: "#333",
+            width: 0.5,
+          }),
+          fill: new Fill({
+            color: `rgba(255, 0, 0, ${Math.min(supply / 10, 0.8)})`,
+            // 🔥 higher demand = darker red
+          }),
+        });
+      });
+    }
     // -----------------------------
     // ADD LAYERS (ORDER MATTERS)
     // -----------------------------
     mapObj.current.addLayer(bufferLayerRef.current);
     mapObj.current.addLayer(demandLayerRef.current);
     mapObj.current.addLayer(supplyLayerRef.current);
+    supplyLayerRef.current.on("prerender", function (event) {
+      const ctx = event.context;
+      const map = mapObj.current;
+
+      if (!map) return;
+
+      const width = map.getSize()[0];
+      const height = map.getSize()[1];
+
+      const swipe = swipeValueRef.current / 100;
+
+      ctx.save();
+      ctx.beginPath();
+
+      // Clip RIGHT side (Supply visible side)
+      ctx.rect(width * swipe, 0, width * (1 - swipe), height);
+
+      ctx.clip();
+    });
+
+    supplyLayerRef.current.on("postrender", function (event) {
+      event.context.restore();
+    });
     mapObj.current.addLayer(aoiLayerRef.current);
     mapObj.current.addLayer(gapLayerRef.current);
     mapObj.current.addLayer(suitableLandRef.current);
     mapObj.current.addLayer(scenerioSanitationRef.current);
     mapObj.current.addLayer(mlLayerRef.current);
     mapObj.current.addLayer(bottleneckLayerRef.current);
+    mapObj.current.addLayer(demandAnalysisRef.current);
+    mapObj.current.addLayer(supplyAnalysisRef.current);
     mapObj.current.addLayer(clickMarkerLayerRef.current);
 
     // -----------------------------
@@ -563,7 +626,7 @@ const openAreaLayerStyle = new Style({
       return;
     }
 
-    fetchData();
+    fetchEmptySpaces();
   }, [
     mlBuffer?.value,
     mlBuffer?.enabled,
@@ -579,48 +642,177 @@ const openAreaLayerStyle = new Style({
       clearBuffer(); // ✅ THIS FIXES IT
     }
   }, [analysisLayers.emptySpace, analysisLayers.bottleneck]);
-const fetchData = async () => {
-  try {
-    const res = await fetch(API.emptySpaces(mlBuffer.value));
-    const data = await res.json();
 
-    const spaces = data.data;
+  useEffect(() => {
+    if (!analysisMode) return;
 
-    if (spaces.length > 0) {
-      const format = new WKT();
+    const weights = {};
 
-      let combinedExtent = null;
+    analysisTargetLayer.forEach((layer) => {
+      weights[layer] = weightsState[layer] ?? 0;
+    });
 
-      spaces.forEach((space) => {
-        const geometry = format.readGeometry(space.space_wkt, {
-          dataProjection: "EPSG:32643",
-          featureProjection: "EPSG:3857",
-        });
+    const run = async () => {
+      if (analysisMode === "demand") {
+        await loadDemandData(gridSize, weights);
+      }
 
-        const extent = geometry.getExtent();
+      if (analysisMode === "supply") {
+        await loadSupplyData(gridSize);
+      }
 
-        if (!combinedExtent) {
-          combinedExtent = extent;
-        } else {
-          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
-          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
-          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
-          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
-        }
+      setAnalysisMode(null);
+    };
+
+    run();
+  }, [analysisMode]);
+
+  // Kept function here for future use—once the backend is fixed, you can use it directly.
+  const fetchDemandAnalysisLayer = async ({ gridSize, weights }) => {
+    try {
+      const res = await fetch("http://192.168.1.27:8000/run-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gridSize,
+          weights,
+        }),
+      });
+      const data = await res.json();
+
+      return data; // ✅ FIXED
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  };
+
+  const loadDemandData = async (gridSize, weights) => {
+    setLoadingLayer(true);
+    try {
+      const data = await fetchDemandAnalysisLayer({
+        gridSize,
+        weights,
       });
 
-      // ✅ SAME centroid logic as bottleneck
-      const center = getCenter(combinedExtent);
-
-      runMLBuffer(center[0], center[1], mlBuffer.value, true);
+      if (data) {
+        drawDemandFeatures(data); // ✅ pass full response
+      }
+    } catch (err) {
+      console.error("Demand API error:", err);
+    } finally {
+      setLoadingLayer(false);
     }
+  };
 
-    drawMLPolygons(spaces);
+  const drawDemandFeatures = (apiResponse) => {
+    if (!apiResponse?.features) return;
 
-  } catch (err) {
-    console.error(err);
-  }
-};
+    const source = demandAnalysisRef.current.getSource();
+    source.clear();
+
+    const format = new GeoJSON();
+
+    const features = format.readFeatures(apiResponse, {
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
+    });
+
+    source.addFeatures(features);
+
+    demandAnalysisRef.current.setVisible(true);
+  };
+
+  const fetchSupplyAnalysisLayer = async ({ gridSize }) => {
+    try {
+      const res = await fetch("http://192.168.1.27:8000/run-supply-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ gridSize }),
+      });
+
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Error fetching supply analysis layer:", err);
+      return null;
+    }
+  };
+  const loadSupplyData = async (gridSize) => {
+    setLoadingLayer(true);
+    try {
+      const data = await fetchSupplyAnalysisLayer({ gridSize });
+
+      if (data) {
+        drawSupplyFeatures(data);
+      }
+    } catch (err) {
+      console.error("Supply API error:", err);
+    } finally {
+      setLoadingLayer(false);
+    }
+  };
+  const drawSupplyFeatures = (apiResponse) => {
+    if (!apiResponse?.features) return;
+
+    const source = supplyAnalysisRef.current.getSource();
+    source.clear();
+
+    const format = new GeoJSON();
+
+    const features = format.readFeatures(apiResponse, {
+      dataProjection: "EPSG:32643",
+      featureProjection: "EPSG:3857",
+    });
+
+    source.addFeatures(features);
+    supplyAnalysisRef.current.setVisible(true);
+  };
+  const fetchEmptySpaces = async () => {
+    try {
+      const res = await fetch(API.emptySpaces(mlBuffer.value));
+      const data = await res.json();
+
+      const spaces = data.data;
+
+      if (spaces.length > 0) {
+        const format = new WKT();
+
+        let combinedExtent = null;
+
+        spaces.forEach((space) => {
+          const geometry = format.readGeometry(space.space_wkt, {
+            dataProjection: "EPSG:32643",
+            featureProjection: "EPSG:3857",
+          });
+
+          const extent = geometry.getExtent();
+
+          if (!combinedExtent) {
+            combinedExtent = extent;
+          } else {
+            combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+            combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+            combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+            combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+          }
+        });
+
+        // ✅ SAME centroid logic as bottleneck
+        const center = getCenter(combinedExtent);
+
+        runMLBuffer(center[0], center[1], mlBuffer.value, true);
+      }
+
+      drawMLPolygons(spaces);
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const drawMLPolygons = (spaces) => {
     if (!mlLayerRef.current) return;
 
@@ -662,65 +854,61 @@ const fetchData = async () => {
   // -----------------------------
   // Bottleneck Layer
   // -----------------------------
-useEffect(() => {
-  if (!analysisLayers.bottleneck) {
-    bottleneckLayerRef.current.getSource().clear();
-    bottleneckLayerRef.current.setVisible(false);
-    return;
-  }
-
-  loadBottleneckData(mlBuffer.value, bottleneckZone);
-
-}, [
-  analysisLayers.bottleneck,
-  mlBuffer.value,
-  mlBuffer.enabled,
-  bottleneckZone,
-]);
-
-const loadBottleneckData = async (radius, zone) => {
-  try {
-    const response = await fetch(
-      API.bottlenecks(radius, zone)
-    );
-    const result = await response.json();
-    const data = result.data;
-
-    if (data.length > 0) {
-      const format = new WKT();
-
-      let combinedExtent = null;
-
-      data.forEach((item) => {
-        const geometry = format.readGeometry(item.space_wkt, {
-          dataProjection: "EPSG:32643",
-          featureProjection: "EPSG:3857",
-        });
-
-        const extent = geometry.getExtent();
-
-        if (!combinedExtent) {
-          combinedExtent = extent;
-        } else {
-          combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
-          combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
-          combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
-          combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
-        }
-      });
-
-      // ✅ FINAL CENTER
-      const center = getCenter(combinedExtent);
-
-      runMLBuffer(center[0], center[1], radius, true);
+  useEffect(() => {
+    if (!analysisLayers.bottleneck) {
+      bottleneckLayerRef.current.getSource().clear();
+      bottleneckLayerRef.current.setVisible(false);
+      return;
     }
 
-    drawBottleneckFeatures(data);
+    loadBottleneckData(mlBuffer.value, bottleneckZone);
+  }, [
+    analysisLayers.bottleneck,
+    mlBuffer.value,
+    mlBuffer.enabled,
+    bottleneckZone,
+  ]);
 
-  } catch (err) {
-    console.error("Bottleneck API error:", err);
-  }
-};
+  const loadBottleneckData = async (radius, zone) => {
+    try {
+      const response = await fetch(API.bottlenecks(radius, zone));
+      const result = await response.json();
+      const data = result.data;
+
+      if (data.length > 0) {
+        const format = new WKT();
+
+        let combinedExtent = null;
+
+        data.forEach((item) => {
+          const geometry = format.readGeometry(item.space_wkt, {
+            dataProjection: "EPSG:32643",
+            featureProjection: "EPSG:3857",
+          });
+
+          const extent = geometry.getExtent();
+
+          if (!combinedExtent) {
+            combinedExtent = extent;
+          } else {
+            combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+            combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+            combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+            combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+          }
+        });
+
+        // ✅ FINAL CENTER
+        const center = getCenter(combinedExtent);
+
+        runMLBuffer(center[0], center[1], radius, true);
+      }
+
+      drawBottleneckFeatures(data);
+    } catch (err) {
+      console.error("Bottleneck API error:", err);
+    }
+  };
 
   const drawBottleneckFeatures = (data) => {
     const format = new WKT();
@@ -754,32 +942,33 @@ const loadBottleneckData = async (radius, zone) => {
     bottleneckLayerRef.current.changed();
   };
 
-const clearBuffer = () => {
-  // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
-  if (!bufferLayerRef.current) return;
+  const clearBuffer = () => {
+    // ❌ DO NOT clear ML buffer polygons, only the red buffer ring
+    if (!bufferLayerRef.current) return;
 
-  bufferLayerRef.current.getSource().clear();
-  bufferGeometryRef.current = null;
-};
-
-// When buffer is globally disabled (both toggles OFF), clear buffer + popup
-useEffect(() => {
-  const handleClear = () => {
-    clearBuffer();
-
-    if (overlayRef.current) {
-      overlayRef.current.setPosition(undefined);
-    }
-
-    if (clickMarkerLayerRef.current) {
-      const src = clickMarkerLayerRef.current.getSource();
-      src && src.clear();
-    }
+    bufferLayerRef.current.getSource().clear();
+    bufferGeometryRef.current = null;
   };
 
-  window.addEventListener("clear-buffer-graphics", handleClear);
-  return () => window.removeEventListener("clear-buffer-graphics", handleClear);
-}, []);
+  // When buffer is globally disabled (both toggles OFF), clear buffer + popup
+  useEffect(() => {
+    const handleClear = () => {
+      clearBuffer();
+
+      if (overlayRef.current) {
+        overlayRef.current.setPosition(undefined);
+      }
+
+      if (clickMarkerLayerRef.current) {
+        const src = clickMarkerLayerRef.current.getSource();
+        src && src.clear();
+      }
+    };
+
+    window.addEventListener("clear-buffer-graphics", handleClear);
+    return () =>
+      window.removeEventListener("clear-buffer-graphics", handleClear);
+  }, []);
 
   // -----------------------------
   // LAYER FACTORY 🔥
@@ -831,7 +1020,6 @@ useEffect(() => {
             bufferEnabledRef.current === false &&
             layerName === "ScenerioSanitation Layer"
           ) {
-
             setAnalysisData({});
             setPopupInfo(properties);
             overlayRef.current.setPosition(evt.coordinate);
@@ -891,7 +1079,7 @@ useEffect(() => {
     //   };
     if (bufferEnabledRef.current) {
       selectedRef.current.forEach((type) => {
-        fetchAnalysis(type, lat, lon);
+        // fetchAnalysis(type, lat, lon);
         fetchCoreAnalysis(type, lat, lon);
       });
 
@@ -980,7 +1168,7 @@ useEffect(() => {
       }
     }, 1000);
   };
-//=========================================
+  //=========================================
 
   ////************************************** ***********/
   useEffect(() => {
@@ -992,8 +1180,7 @@ useEffect(() => {
       const [lon, lat] = toLonLat(coordinate);
 
       // drawCoreAnalysisCircles(); for sync the core button time plot cocentric on map
-         syncCoreAnalysisDraw(true);
-
+      syncCoreAnalysisDraw(true);
 
       selectedRef.current.forEach((type) => {
         fetchCoreAnalysis(type, lat, lon);
@@ -1021,7 +1208,7 @@ useEffect(() => {
     return () => {
       window.removeEventListener(
         "close-core-analysis",
-        handleCloseCoreAnalysis,   
+        handleCloseCoreAnalysis,
       );
       window.removeEventListener("run-core-analysis", handleCoreAnalysis);
     };
@@ -1095,7 +1282,7 @@ useEffect(() => {
       !demandLayerRef.current ||
       !supplyLayerRef.current ||
       !suitableLandRef.current ||
-      !openAreaLayerRef.current    //--open area layer----
+      !openAreaLayerRef.current //--open area layer----
     )
       return;
 
@@ -1107,13 +1294,12 @@ useEffect(() => {
       demandLayerRef.current.setVisible(false);
     }
     //OPEN-AREA
-        // if (analysisLayers.open_area) {
-        //   fetchOpenAreaLayer();
-        //   openAreaLayerRef.current.setVisible(true);
-        // } else {
-        //   openAreaLayerRef.current.setVisible(false);
-        // }
-
+    // if (analysisLayers.open_area) {
+    //   fetchOpenAreaLayer();
+    //   openAreaLayerRef.current.setVisible(true);
+    // } else {
+    //   openAreaLayerRef.current.setVisible(false);
+    // }
 
     // SUPPLY
     if (analysisLayers.supply) {
@@ -1139,7 +1325,6 @@ useEffect(() => {
       suitableLandRef.current.setVisible(false);
     }
   }, [analysisLayers]);
-
 
   //====== SEPRATE OPEN AREA========
   useEffect(() => {
@@ -1195,6 +1380,11 @@ useEffect(() => {
             source,
             style: createLayerStyle(type),
           });
+          if (type === "road_network3") {
+            layerObj.setZIndex(1);
+          } else {
+            layerObj.setZIndex(2);
+          }
 
           mapObj.current.addLayer(layerObj);
           layerRef.current[type] = layerObj;
@@ -1347,26 +1537,26 @@ useEffect(() => {
   // -----------------------------
   // ANALYSIS API
   // -----------------------------
-  const fetchAnalysis = (type, lat, lon) => {
-    fetch(API.analysis, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        tableName: type,
-        latitude: lat,
-        longitude: lon,
-        bufferRadius: buffer * 1000,
-      }),
-    })
-      .then((res) => res.json())
-      .then((res) => {
-        if (res.status === "success") {
-          updateAnalysis(type, res.data);
-        }
-      });
-  };
+  // const fetchAnalysis = (type, lat, lon) => {
+  //   fetch(API.analysis, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //     },
+  //     body: JSON.stringify({
+  //       tableName: type,
+  //       latitude: lat,
+  //       longitude: lon,
+  //       bufferRadius: buffer * 1000,
+  //     }),
+  //   })
+  //     .then((res) => res.json())
+  //     .then((res) => {
+  //       if (res.status === "success") {
+  //         updateAnalysis(type, res.data);
+  //       }
+  //     });
+  // };
   /************************ */
   const fetchCoreAnalysis = (type, lat, lon) => {
     fetch(API.coreAnalysis, {
@@ -1376,9 +1566,9 @@ useEffect(() => {
       },
       body: JSON.stringify({
         tableName: type,
-        latitude: String(lat),
-        longitude: String(lon),
-        bufferRadius: String(bufferRef.current * 1000),
+        latitude: lat,
+        longitude: lon,
+        bufferRadius: bufferRef.current * 1000,
       }),
     })
       .then((res) => res.json())
@@ -1396,7 +1586,14 @@ useEffect(() => {
       .catch(console.error);
   };
   /******** */
+  /***********/
+  useEffect(() => {
+    if (analysisLayers.demand && analysisLayers.supply) {
+      setShowSwipeControl(true);
+    }
+  }, [analysisLayers.demand, analysisLayers.supply]);
 
+  //*** */
   // -----------------------------
   // AOI API
   // -----------------------------
@@ -1667,34 +1864,71 @@ useEffect(() => {
       )}
 
       {/* SWIPE CONTROL */}
-      {analysisLayers.demand && analysisLayers.supply && (
-        <div
-          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 
+      {/* {analysisLayers.demand && analysisLayers.supply && ( */}
+      {analysisLayers.demand &&
+        analysisLayers.supply &&
+        (showSwipeControl ? (
+          <div
+            className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 
         bg-white/95 backdrop-blur-md px-5 py-3 rounded-xl 
         shadow-lg border w-[320px]"
-        >
-          {/* Header */}
-          <div className="text-sm font-semibold text-gray-700 text-center mb-2">
+          >
+            {/* Header */}
+            {/* <div className="text-sm font-semibold text-gray-700 text-center mb-2">
             Analysis
-          </div>
+          </div> */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold text-gray-700">
+                Analysis
+              </div>
 
-          {/* Labels */}
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
-            <span>Demand</span>
-            <span>Supply</span>
-          </div>
+              <IconButton
+                size="small"
+                onClick={() => setShowSwipeControl(false)}
+                sx={{ color: "#6b7280", padding: "2px" }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </div>
 
-          {/* Slider */}
-          <input
-            id="swipe"
-            type="range"
-            min="0"
-            max="100"
-            defaultValue="50"
-            className="w-full accent-orange-500 cursor-pointer"
-          />
-        </div>
-      )}
+            {/* Labels */}
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Demand</span>
+              <span>Supply</span>
+            </div>
+
+            {/* Slider */}
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={swipeValue}
+              className="w-full accent-orange-500 cursor-pointer"
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setSwipeValue(val);
+                updateMapSwipe(val); // 🔥 IMPORTANT
+              }}
+            />
+          </div>
+        ) : (
+          <IconButton
+            onClick={() => setShowSwipeControl(true)}
+            sx={{
+              position: "absolute",
+              bottom: 64,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 50,
+              backgroundColor: "rgba(255,255,255,0.95)",
+              border: "1px solid #e5e7eb",
+              boxShadow: 3,
+              "&:hover": { backgroundColor: "#fff" },
+            }}
+          >
+            <CompareArrowsIcon fontSize="small" />
+          </IconButton>
+        ))}
 
       {/* LOADING LAYER OVERLAY */}
       {/* {loadingLayer && (
@@ -1724,15 +1958,3 @@ useEffect(() => {
     </div>
   );
 }
-/**
- 
-
-1.Worked on open area layer loading logic with delayed display and loader handling.
-2.keep the label name same as buttons and use gradient in openarea layer fill color and boundary color accordingly
-3.Fixed analysis checkbox dependency behavior so toilet layer removal also clears related analysis states.
-4.Improved core analysis behavior by aligning concentric buffer plot timing with table display 
-5.Verified sidebar, analysis panel, and map layer interactions for demand, supply, gap, and open area workflows.
-6.merge the latest code and push the code on github and verified the changes 
-7.gone through the
- 
-*/

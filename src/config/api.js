@@ -17,5 +17,11 @@ export const API = {
 
   bottlenecks: (radius, zone) =>
     `${API_URL}/bottlenecks?radius=${radius}&zone=${encodeURIComponent(zone)}`,
+  routingAOI: `${API_URL}/aoi`,
+  roads: `${API_URL}/roads`,
+  ghats: `${API_URL}/ghats`,
+  river: `${API_URL}/river`,
+  shortestPath: `${API_URL}/shortest-path`,
+  intersections: `${API_URL}/intersections`
 };
 
